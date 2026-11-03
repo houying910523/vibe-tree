@@ -5,6 +5,9 @@ import { createTestGitRepo, cleanupTestGitRepo } from './helpers/test-git-repo';
 import path from 'path';
 import fs from 'fs';
 
+const DEFAULT_TERMINAL_FONT_FAMILY =
+  '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
+
 test.describe('Terminal Settings', () => {
   let electronApp: ElectronApplication;
   let page: Page;
@@ -59,9 +62,6 @@ test.describe('Terminal Settings', () => {
 
     // Click the open button which will trigger the mocked dialog
     await openButton.click();
-
-    // Wait for worktree list to appear
-    await page.waitForTimeout(3000);
 
     // Click the worktree button to open the terminal
     const worktreeButton = page
@@ -120,8 +120,10 @@ test.describe('Terminal Settings', () => {
       windows[0].webContents.send('menu:open-terminal-settings');
     });
 
-    // Wait for dialog to appear
-    await page.waitForTimeout(1000);
+    // Wait for dialog to be ready
+    await page.waitForSelector('[role="dialog"], h2:has-text("Terminal Settings")', {
+      timeout: 5000
+    });
 
     // Check if dialog is visible now
     const dialogVisible = await page
@@ -151,11 +153,6 @@ test.describe('Terminal Settings', () => {
       }
     }
 
-    // Wait for dialog to be ready
-    await page.waitForSelector('[role="dialog"], h2:has-text("Terminal Settings")', {
-      timeout: 5000
-    });
-
     // Verify the dialog title
     const dialogTitle = await page.textContent('h2:has-text("Terminal Settings")');
     expect(dialogTitle).toContain('Terminal Settings');
@@ -169,7 +166,8 @@ test.describe('Terminal Settings', () => {
     await expect(fontSelect).toBeVisible();
 
     // Change to a different font
-    const newFont = '"Cascadia Code", Menlo, Monaco, monospace';
+    const newFont =
+      '"Cascadia Code", Menlo, Monaco, "Noto Sans Mono CJK SC", "PingFang SC", "Microsoft YaHei UI", monospace';
     await fontSelect.selectOption(newFont);
 
     // Test font size change
@@ -208,19 +206,26 @@ test.describe('Terminal Settings', () => {
 
     const settingsPath = path.join(userDataPath, 'terminal-settings.json');
 
-    // Wait a moment for settings to be saved
-    await page.waitForTimeout(500);
-
-    // Verify settings file exists
-    expect(fs.existsSync(settingsPath)).toBeTruthy();
-
     // Verify settings file contains our changes
-    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    expect(settings.fontFamily).toBe(newFont);
-    expect(settings.fontSize).toBe(16);
-    expect(settings.cursorBlink).toBe(!initialBlinkState);
-    expect(settings.scrollback).toBe(5000);
-    expect(settings.tabStopWidth).toBe(2);
+    await expect
+      .poll(() => {
+        if (!fs.existsSync(settingsPath)) return null;
+        return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      })
+      .toMatchObject({
+        fontFamily: newFont,
+        fontSize: 16,
+        cursorBlink: !initialBlinkState,
+        scrollback: 5000,
+        tabStopWidth: 2
+      });
+
+    const persistedSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    expect(persistedSettings.fontFamily).toBe(newFont);
+    expect(persistedSettings.fontSize).toBe(16);
+    expect(persistedSettings.cursorBlink).toBe(!initialBlinkState);
+    expect(persistedSettings.scrollback).toBe(5000);
+    expect(persistedSettings.tabStopWidth).toBe(2);
 
     // Re-open settings to verify persistence
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -242,11 +247,8 @@ test.describe('Terminal Settings', () => {
     // Test Reset to Defaults
     await page.click('button:has-text("Reset to Defaults")');
 
-    // Wait for reset to apply
-    await page.waitForTimeout(500);
-
     // Verify defaults are restored
-    await expect(fontSelect).toHaveValue('Menlo, Monaco, "Courier New", monospace');
+    await expect(fontSelect).toHaveValue(DEFAULT_TERMINAL_FONT_FAMILY);
     await expect(fontSizeInput).toHaveValue('14');
     await expect(cursorBlinkCheckbox).toBeChecked();
     await expect(scrollbackInput).toHaveValue('10000');
@@ -311,11 +313,21 @@ test.describe('Terminal Settings', () => {
     const customFont = '"Fira Code", "Cascadia Code", monospace';
     await customFontInput.fill(customFont);
 
+    const userDataPath = await electronApp.evaluate(async ({ app }) => {
+      return app.getPath('userData');
+    });
+    const settingsPath = path.join(userDataPath, 'terminal-settings.json');
+
     // Apply the custom font
     await page.click('button:has-text("Apply")');
 
-    // Wait for the change to be applied
-    await page.waitForTimeout(500);
+    await expect
+      .poll(() => {
+        return fs.existsSync(settingsPath)
+          ? JSON.parse(fs.readFileSync(settingsPath, 'utf8')).fontFamily
+          : null;
+      })
+      .toBe(customFont);
 
     // Close and reopen to verify persistence
     await page.click('button:has-text("Done")');

@@ -20,6 +20,9 @@ import type { TerminalSettings } from '../types/terminal-settings';
 import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
 import { backend } from '../services/backend';
 
+const DEFAULT_TERMINAL_FONT_FAMILY =
+  '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
+
 interface ClaudeTerminalProps {
   worktreePath: string;
   projectId?: string;
@@ -435,7 +438,7 @@ export function ClaudeTerminal({
 
     // If we don't have settings yet, load defaults
     const settings = terminalSettings || {
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: DEFAULT_TERMINAL_FONT_FAMILY,
       fontSize: 14,
       cursorBlink: true,
       scrollback: 10000,

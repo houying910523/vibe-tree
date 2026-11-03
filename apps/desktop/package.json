@@ -6,8 +6,8 @@
   "main": "dist/main/index.js",
   "scripts": {
     "predev": "rm -f .dev-port && cd ../../packages/core && pnpm build && cd ../../apps/desktop && pnpm copy:assets",
-    "dev": "concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"pnpm dev:renderer\" \"pnpm dev:electron\"",
-    "dev:debug": "DEBUG_LAYOUT=true concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"DEBUG_LAYOUT=true pnpm dev:renderer\" \"pnpm dev:electron:debug\"",
+    "dev": "rm -f .dev-port && concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"pnpm dev:renderer\" \"pnpm dev:electron\"",
+    "dev:debug": "rm -f .dev-port && DEBUG_LAYOUT=true concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"DEBUG_LAYOUT=true pnpm dev:renderer\" \"pnpm dev:electron:debug\"",
     "dev:main": "tsc -w -p tsconfig.main.json",
     "dev:preload": "tsc -w -p tsconfig.preload.json",
     "copy:assets": "mkdir -p dist/main && cp src/main/stats-dialog.html dist/main/",

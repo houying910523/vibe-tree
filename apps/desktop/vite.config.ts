@@ -44,6 +44,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: '127.0.0.1',
     port: Math.floor(Math.random() * 1000) + 3000,
     strictPort: false // Allow Vite to find alternative ports if the random port is taken
   },

@@ -64,7 +64,7 @@ function createWindow() {
     } catch (error) {
       console.warn('Could not read dev port file, using default port 3000');
     }
-    mainWindow.loadURL(`http://localhost:${port}`);
+    mainWindow.loadURL(`http://127.0.0.1:${port}`);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }

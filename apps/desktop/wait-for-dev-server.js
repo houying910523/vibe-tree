@@ -42,7 +42,9 @@ async function main() {
   // going through npx breaks on machines whose global npx shim is not
   // executable, and wait-on is already a devDependency of this package
   const waitOnBin = require.resolve('wait-on/bin/wait-on');
-  const waitOn = spawn(process.execPath, [waitOnBin, `tcp:${port}`], { stdio: 'inherit' });
+  const waitOn = spawn(process.execPath, [waitOnBin, `tcp:127.0.0.1:${port}`], {
+    stdio: 'inherit'
+  });
   waitOn.on('close', (code) => {
     if (code === 0) {
       console.log('Dev server is ready!');

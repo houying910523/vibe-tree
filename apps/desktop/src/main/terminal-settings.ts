@@ -13,8 +13,16 @@ export interface TerminalSettings {
 
 export type TerminalSettingsUpdate = Partial<TerminalSettings>;
 
+export const DEFAULT_TERMINAL_FONT_FAMILY =
+  '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
+
+const LEGACY_DEFAULT_TERMINAL_FONT_FAMILIES = [
+  'Menlo, Monaco, "Courier New", monospace',
+  'Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace'
+];
+
 const DEFAULT_SETTINGS: TerminalSettings = {
-  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+  fontFamily: DEFAULT_TERMINAL_FONT_FAMILY,
   fontSize: 14,
   cursorBlink: true,
   scrollback: 10000,
@@ -56,6 +64,9 @@ class TerminalSettingsManager {
           ...DEFAULT_SETTINGS,
           ...loadedSettings
         };
+        if (LEGACY_DEFAULT_TERMINAL_FONT_FAMILIES.includes(this.settings.fontFamily)) {
+          this.settings.fontFamily = DEFAULT_TERMINAL_FONT_FAMILY;
+        }
       }
     } catch (error) {
       console.error('Failed to load terminal settings:', error);
@@ -95,13 +106,13 @@ class TerminalSettingsManager {
   // Get list of common monospace fonts for the UI
   getAvailableFonts(): string[] {
     return [
-      'Menlo, Monaco, "Courier New", monospace',
-      '"Cascadia Code", Menlo, Monaco, monospace',
-      '"Fira Code", Menlo, Monaco, monospace',
-      '"JetBrains Mono", Menlo, Monaco, monospace',
-      '"Source Code Pro", Menlo, Monaco, monospace',
+      DEFAULT_TERMINAL_FONT_FAMILY,
+      '"Cascadia Code", Menlo, Monaco, "Noto Sans Mono CJK SC", "PingFang SC", "Microsoft YaHei UI", monospace',
+      '"Fira Code", Menlo, Monaco, "Noto Sans Mono CJK SC", "PingFang SC", "Microsoft YaHei UI", monospace',
+      '"JetBrains Mono", Menlo, Monaco, "Noto Sans Mono CJK SC", "PingFang SC", "Microsoft YaHei UI", monospace',
+      '"Source Code Pro", Menlo, Monaco, "Noto Sans Mono CJK SC", "PingFang SC", "Microsoft YaHei UI", monospace',
       '"SF Mono", Monaco, Menlo, monospace',
-      'Consolas, "Courier New", monospace',
+      'Consolas, "Microsoft YaHei UI", "Noto Sans Mono CJK SC", monospace',
       '"IBM Plex Mono", Monaco, Menlo, monospace',
       '"Roboto Mono", Monaco, Menlo, monospace',
       '"Ubuntu Mono", Monaco, Menlo, monospace',

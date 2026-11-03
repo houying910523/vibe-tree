@@ -8,6 +8,9 @@ import { SearchAddon } from '@xterm/addon-search';
 import { escapeShellPath } from '@vibetree/core';
 import '@xterm/xterm/css/xterm.css';
 
+const DEFAULT_TERMINAL_FONT_FAMILY =
+  '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
+
 /**
  * Configuration options for the Terminal component
  */
@@ -146,7 +149,7 @@ export const Terminal: React.FC<TerminalProps> = ({
 
     const {
       fontSize = 14,
-      fontFamily = 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily = DEFAULT_TERMINAL_FONT_FAMILY,
       theme = 'dark',
       cursorBlink = true,
       scrollback = 10000,

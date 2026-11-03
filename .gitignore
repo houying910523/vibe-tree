@@ -60,4 +60,4 @@ logs/
 
 # E2E test exit status file
 **/.exit-status
-
+.codegraph/
