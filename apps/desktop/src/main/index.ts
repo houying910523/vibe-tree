@@ -19,6 +19,21 @@ app.setName('VibeTree');
 
 let mainWindow: BrowserWindow | null = null;
 
+function logRendererConsole(window: BrowserWindow) {
+  window.webContents.on('console-message', ({ level, message, sourceId, lineNumber }) => {
+    const location = sourceId ? ` (${sourceId}:${lineNumber})` : '';
+    const text = `[Renderer:${level}] ${message}${location}`;
+
+    if (level === 'error') {
+      console.error(text);
+    } else if (level === 'warning') {
+      console.warn(text);
+    } else {
+      console.log(text);
+    }
+  });
+}
+
 function createWindow() {
   const autoOpenAppName = process.env.AUTO_OPEN_PROJECT_NAME;
   const windowTitle = autoOpenAppName ? `VibeTree - ${autoOpenAppName}` : 'VibeTree';
@@ -55,6 +70,8 @@ function createWindow() {
 
   const isProduction = process.env.NODE_ENV === 'production';
   if (!app.isPackaged && !isProduction) {
+    logRendererConsole(mainWindow);
+
     let port = '3000';
     try {
       const portFile = path.join(__dirname, '../../.dev-port');
