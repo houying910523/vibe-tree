@@ -36,8 +36,6 @@ After completing any coding task, you should always create a pull request with t
 
 - Creating a new branch if not already on a feature branch
 - Committing all changes with a descriptive commit message
-- Pushing the branch to the remote repository
-- Creating a pull request using `gh pr create` with a clear title and description
-- Including a summary of the changes and test plan in the PR description
+- NEVER push the branch to the remote repository
 
 This ensures all code changes are properly reviewed and tracked through the PR process.
