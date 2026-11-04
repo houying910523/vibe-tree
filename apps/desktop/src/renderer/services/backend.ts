@@ -6,6 +6,7 @@ import type {
   Worktree,
   GitStatus,
   WorktreeAddResult,
+  WorktreeHookFinishedEvent,
   WorktreeRemoveResult,
   WorktreeGitOperationResult
 } from '@vibetree/core';
@@ -137,6 +138,8 @@ export const backend = {
       const adapter = await getAdapter();
       return adapter.addWorktree(projectPath, branchName);
     },
+    onWorktreeHookFinished: (callback: (event: WorktreeHookFinishedEvent) => void): Unsubscribe =>
+      subscribe((adapter) => adapter.onWorktreeHookFinished(callback)),
     removeWorktree: async (
       projectPath: string,
       worktreePath: string,

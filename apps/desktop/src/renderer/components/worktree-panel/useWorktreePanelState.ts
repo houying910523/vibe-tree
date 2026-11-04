@@ -58,6 +58,32 @@ export function useWorktreePanelState({
     }
   }, [initialWorktrees]);
 
+  useEffect(() => {
+    const unsubscribe = backend.git.onWorktreeHookFinished((event) => {
+      if (event.projectPath !== projectPath) return;
+
+      if (event.hook.ok) {
+        toast({
+          title: 'Setup hook complete',
+          description: `Setup hook finished for branch ${event.branch}`
+        });
+        return;
+      }
+
+      toast({
+        title: 'Setup hook failed',
+        description: event.hook.timedOut
+          ? `Setup hook timed out for branch ${event.branch}.`
+          : `Setup hook exited with code ${event.hook.exitCode} for branch ${event.branch}.`,
+        variant: 'destructive'
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectPath, toast]);
+
   const handleCreateBranch = useCallback(
     async (branchName: string, agentCommand: AgentCommand) => {
       if (!branchName.trim()) return false;
@@ -78,7 +104,9 @@ export function useWorktreePanelState({
             title: 'Success',
             description: result.hook
               ? `Created worktree for branch ${result.branch} (setup hook ran)`
-              : `Created worktree for branch ${result.branch}`
+              : result.hookStarted
+                ? `Created worktree for branch ${result.branch} (setup hook running)`
+                : `Created worktree for branch ${result.branch}`
           });
         }
         loadWorktrees();

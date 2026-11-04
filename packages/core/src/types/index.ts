@@ -60,7 +60,15 @@ export interface HookResult {
 export interface WorktreeAddResult {
   path: string;
   branch: string;
+  hookStarted?: boolean;
   hook?: HookResult;
+}
+
+export interface WorktreeHookFinishedEvent {
+  projectPath: string;
+  worktreePath: string;
+  branch: string;
+  hook: HookResult;
 }
 
 export interface WorktreeRemoveResult {

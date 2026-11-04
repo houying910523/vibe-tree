@@ -37,11 +37,8 @@ interface WSMessage {
 export function setupWebSocketHandlers(wss: WebSocketServer, services: Services) {
   const { shellManager, authService, config, hooks, agentStateTracker } = services;
 
-  function broadcastSessionsChanged() {
-    const message = JSON.stringify({
-      type: 'shell:sessions-changed',
-      payload: shellManager.getWorktreeSessionCounts()
-    });
+  function broadcast(type: string, payload: unknown) {
+    const message = JSON.stringify({ type, payload });
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -49,13 +46,12 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
     });
   }
 
+  function broadcastSessionsChanged() {
+    broadcast('shell:sessions-changed', shellManager.getWorktreeSessionCounts());
+  }
+
   agentStateTracker.onChange((states) => {
-    const message = JSON.stringify({ type: 'shell:agent-states-changed', payload: states });
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
+    broadcast('shell:agent-states-changed', states);
   });
 
   /**
@@ -383,7 +379,9 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
             try {
               respond(
                 'git:worktree:add:response',
-                await addWorktree(message.payload.projectPath, message.payload.branchName)
+                await addWorktree(message.payload.projectPath, message.payload.branchName, {
+                  onHookFinished: (event) => broadcast('git:worktree-hook:finished', event)
+                })
               );
             } catch (error) {
               respondError(error);

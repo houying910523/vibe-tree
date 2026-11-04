@@ -6,6 +6,7 @@ import {
   ShellWriteResult,
   ShellResizeResult,
   WorktreeAddResult,
+  WorktreeHookFinishedEvent,
   WorktreeRemoveResult,
   WorktreeGitOperationResult,
   IDE
@@ -109,6 +110,8 @@ export interface CommunicationAdapter {
    */
   addWorktree(projectPath: string, branchName: string): Promise<WorktreeAddResult>;
 
+  onWorktreeHookFinished(callback: (event: WorktreeHookFinishedEvent) => void): () => void;
+
   /**
    * Remove a git worktree and optionally its branch
    * @param projectPath - Path to the main git repository
@@ -195,6 +198,7 @@ export abstract class BaseAdapter implements CommunicationAdapter {
   abstract getGitDiff(worktreePath: string, filePath?: string): Promise<string>;
   abstract getGitDiffStaged(worktreePath: string, filePath?: string): Promise<string>;
   abstract addWorktree(projectPath: string, branchName: string): Promise<WorktreeAddResult>;
+  abstract onWorktreeHookFinished(callback: (event: WorktreeHookFinishedEvent) => void): () => void;
   abstract removeWorktree(
     projectPath: string,
     worktreePath: string,

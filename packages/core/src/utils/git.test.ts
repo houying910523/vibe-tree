@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { executeGitCommand, mergeWorktreeIntoRoot, rebaseWorktreeOntoRoot } from './git';
+import {
+  addWorktree,
+  executeGitCommand,
+  mergeWorktreeIntoRoot,
+  rebaseWorktreeOntoRoot
+} from './git';
 
 async function writeAndCommit(
   repoPath: string,
@@ -13,6 +18,23 @@ async function writeAndCommit(
   fs.writeFileSync(path.join(repoPath, fileName), content);
   await executeGitCommand(['add', fileName], repoPath);
   await executeGitCommand(['commit', '-m', message], repoPath);
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+async function waitFor(condition: () => boolean, label: string): Promise<void> {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+async function waitForFile(filePath: string): Promise<void> {
+  await waitFor(() => fs.existsSync(filePath), filePath);
 }
 
 describe('worktree branch operations', () => {
@@ -59,5 +81,33 @@ describe('worktree branch operations', () => {
 
     expect(result).toMatchObject({ success: true, sourceBranch: 'feature', targetBranch: 'main' });
     expect(mergeBase).toBe(mainHead);
+  });
+
+  it('returns after creating the worktree while the post-create hook continues', async () => {
+    const markerPath = path.join(tmpDir, 'post-create-finished');
+    const configPath = path.join(projectPath, '.vibetree', 'git-hook.yml');
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(
+      configPath,
+      `worktree:\n  add:\n    post-hook: sleep 1 && printf done > ${shellQuote(markerPath)}\n`
+    );
+
+    const hookEvents: unknown[] = [];
+    const result = await addWorktree(projectPath, 'async-hook', {
+      onHookFinished: (event) => hookEvents.push(event)
+    });
+
+    expect(result).toMatchObject({ branch: 'async-hook', hookStarted: true });
+    expect(fs.existsSync(markerPath)).toBe(false);
+
+    await waitForFile(markerPath);
+    expect(fs.readFileSync(markerPath, 'utf8')).toBe('done');
+    await waitFor(() => hookEvents.length === 1, 'hook completion event');
+    expect(hookEvents[0]).toMatchObject({
+      projectPath,
+      worktreePath: result.path,
+      branch: 'async-hook',
+      hook: { name: 'post-create', ok: true, exitCode: 0 }
+    });
   });
 });

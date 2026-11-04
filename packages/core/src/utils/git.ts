@@ -6,10 +6,11 @@ import {
   WorktreeAddResult,
   WorktreeRemoveResult,
   WorktreeGitOperationResult,
-  ProjectValidationResult
+  ProjectValidationResult,
+  WorktreeHookFinishedEvent
 } from '../types';
 import { parseWorktrees, parseGitStatus, extractBranchName } from './git-parser';
-import { runWorktreeHookIfPresent } from './worktree-hooks';
+import { hasWorktreeHook, runWorktreeHookIfPresent } from './worktree-hooks';
 
 /**
  * Execute a git command and return the output
@@ -139,24 +140,46 @@ export async function getGitDiffStaged(worktreePath: string, filePath?: string):
  * @param branchName - Name for the new branch
  * @returns Result with new worktree path and branch name
  */
+interface AddWorktreeOptions {
+  onHookFinished?: (event: WorktreeHookFinishedEvent) => void;
+}
+
 export async function addWorktree(
   projectPath: string,
-  branchName: string
+  branchName: string,
+  options: AddWorktreeOptions = {}
 ): Promise<WorktreeAddResult> {
   const worktreePath = path.join(projectPath, '..', `${path.basename(projectPath)}-${branchName}`);
 
   await executeGitCommand(['worktree', 'add', '-b', branchName, worktreePath], projectPath);
 
-  // Per-project setup hook (.vibetree/git-hook.yml or legacy
-  // .vibetree/hooks/post-create): dependency installs, .env copies, etc.
-  // A failing hook is reported, not fatal - the worktree already exists
-  const hook = await runWorktreeHookIfPresent('post-create', {
+  const hookContext = {
     projectPath,
     worktreePath,
     branch: branchName
-  });
+  };
+  const hookStarted = hasWorktreeHook(projectPath, 'post-create');
+  if (hookStarted) {
+    // Run setup after responding so dependency installs do not freeze the UI.
+    void runWorktreeHookIfPresent('post-create', hookContext)
+      .then((hook) => {
+        if (!hook) return;
+        try {
+          options.onHookFinished?.({ ...hookContext, hook });
+        } catch (error) {
+          console.warn(
+            `[worktree-hook] Failed to report post-create hook result: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      })
+      .catch((error) => {
+        console.warn(
+          `[worktree-hook] Background post-create hook failed unexpectedly: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+  }
 
-  return { path: worktreePath, branch: branchName, hook };
+  return { path: worktreePath, branch: branchName, hookStarted };
 }
 
 /**

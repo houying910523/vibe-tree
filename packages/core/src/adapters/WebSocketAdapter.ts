@@ -6,6 +6,7 @@ import type {
   ShellWriteResult,
   ShellResizeResult,
   WorktreeAddResult,
+  WorktreeHookFinishedEvent,
   WorktreeRemoveResult,
   WorktreeGitOperationResult,
   IDE
@@ -229,6 +230,10 @@ export class WebSocketAdapter extends BaseAdapter {
 
   async addWorktree(projectPath: string, branchName: string): Promise<WorktreeAddResult> {
     return this.sendMessage('git:worktree:add', { projectPath, branchName });
+  }
+
+  onWorktreeHookFinished(callback: (event: WorktreeHookFinishedEvent) => void): () => void {
+    return this.addEventListener('git:worktree-hook:finished', callback);
   }
 
   async removeWorktree(

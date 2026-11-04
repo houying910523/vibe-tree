@@ -50,7 +50,8 @@ function resolveProjectFile(projectPath: string, relativePath: string): string |
 
 function readConfiguredWorktreeHookCommand(
   projectPath: string,
-  name: WorktreeHookName
+  name: WorktreeHookName,
+  log: boolean = true
 ): string | null {
   const configPath = resolveProjectFile(projectPath, HOOK_CONFIG_PATH);
   if (!configPath) return null;
@@ -70,22 +71,26 @@ function readConfiguredWorktreeHookCommand(
         : parsed?.worktree?.remove?.['pre-hook'];
 
     if (typeof configuredCommand !== 'string') {
-      console.log(`[worktree-hook] No configured ${name} hook found in ${configPath}`);
+      if (log) console.log(`[worktree-hook] No configured ${name} hook found in ${configPath}`);
       return null;
     }
 
     const trimmedCommand = configuredCommand.trim();
     if (trimmedCommand.length === 0) {
-      console.log(`[worktree-hook] Ignoring empty configured ${name} hook in ${configPath}`);
+      if (log) {
+        console.log(`[worktree-hook] Ignoring empty configured ${name} hook in ${configPath}`);
+      }
       return null;
     }
 
-    console.log(`[worktree-hook] Loaded configured ${name} hook from ${configPath}`);
+    if (log) console.log(`[worktree-hook] Loaded configured ${name} hook from ${configPath}`);
     return trimmedCommand;
   } catch (error) {
-    console.warn(
-      `Ignoring malformed ${HOOK_CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    if (log) {
+      console.warn(
+        `Ignoring malformed ${HOOK_CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     return null;
   }
 }
@@ -149,7 +154,9 @@ function runHookProcess(
 
     const timer = setTimeout(() => {
       timedOut = true;
-      console.warn(`[worktree-hook] ${name} timed out after ${timeoutMs}ms for ${context.worktreePath}`);
+      console.warn(
+        `[worktree-hook] ${name} timed out after ${timeoutMs}ms for ${context.worktreePath}`
+      );
       if (process.platform !== 'win32' && child.pid) {
         try {
           process.kill(-child.pid, 'SIGKILL');
@@ -165,7 +172,9 @@ function runHookProcess(
     child.stderr?.on('data', append);
 
     child.on('error', (error) => {
-      console.warn(`[worktree-hook] Failed to start ${name} for ${context.worktreePath}: ${error.message}`);
+      console.warn(
+        `[worktree-hook] Failed to start ${name} for ${context.worktreePath}: ${error.message}`
+      );
       finish({
         name,
         ok: false,
@@ -224,6 +233,13 @@ export function findWorktreeHook(projectPath: string, name: WorktreeHookName): s
   }
 }
 
+export function hasWorktreeHook(projectPath: string, name: WorktreeHookName): boolean {
+  return (
+    readConfiguredWorktreeHookCommand(projectPath, name, false) !== null ||
+    findWorktreeHook(projectPath, name) !== null
+  );
+}
+
 /**
  * Run a legacy executable lifecycle hook with the worktree as cwd. Output
  * (both streams) is captured and capped; the hook is killed after a timeout
@@ -278,6 +294,8 @@ export async function runWorktreeHookIfPresent(
     return undefined;
   }
 
-  console.log(`[worktree-hook] Running legacy ${name} hook at ${hookPath} for ${context.worktreePath}`);
+  console.log(
+    `[worktree-hook] Running legacy ${name} hook at ${hookPath} for ${context.worktreePath}`
+  );
   return runWorktreeHook(hookPath, name, context, timeoutMs);
 }
