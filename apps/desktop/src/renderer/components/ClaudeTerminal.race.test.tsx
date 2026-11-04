@@ -176,4 +176,47 @@ describe('ClaudeTerminal input listener lifecycle', () => {
     expect(shellWrite).toHaveBeenCalledTimes(1);
     expect(shellWrite).toHaveBeenCalledWith('pid-1', 'x');
   });
+
+  it('runs the initial command when the shell is new', async () => {
+    render(
+      <ClaudeTerminal
+        worktreePath="/tmp/repo-a"
+        terminalId="term-1"
+        initialCommand="codex"
+        isVisible
+      />
+    );
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      startResolvers[0]();
+    });
+
+    await waitFor(() => expect(shellWrite).toHaveBeenCalledWith('pid-0', 'codex\r'));
+  });
+
+  it('does not run the initial command when reattaching to an existing shell', async () => {
+    shellStart.mockResolvedValueOnce({
+      success: true,
+      processId: 'pid-existing',
+      isNew: false,
+      buffer: ''
+    });
+
+    const onProcessIdChange = vi.fn();
+
+    render(
+      <ClaudeTerminal
+        worktreePath="/tmp/repo-a"
+        terminalId="term-1"
+        initialCommand="codex"
+        onProcessIdChange={onProcessIdChange}
+        isVisible
+      />
+    );
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onProcessIdChange).toHaveBeenCalledWith('pid-existing'));
+    expect(shellWrite).not.toHaveBeenCalled();
+  });
 });

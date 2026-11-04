@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { backend } from '@/services/backend';
+import { setAgentCommandForWorktree, type AgentCommand } from '@/services/worktreeAgentCommands';
 import type { Worktree } from './types';
 
 type ToastFn = (props: {
@@ -58,11 +59,12 @@ export function useWorktreePanelState({
   }, [initialWorktrees]);
 
   const handleCreateBranch = useCallback(
-    async (branchName: string) => {
+    async (branchName: string, agentCommand: AgentCommand) => {
       if (!branchName.trim()) return false;
 
       try {
         const result = await backend.git.addWorktree(projectPath, branchName);
+        setAgentCommandForWorktree(result.path, agentCommand);
         if (result.hook && !result.hook.ok) {
           toast({
             title: 'Worktree created, setup hook failed',

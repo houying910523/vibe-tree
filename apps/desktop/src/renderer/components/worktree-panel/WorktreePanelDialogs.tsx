@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Code2, Terminal } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   Dialog,
@@ -9,9 +10,11 @@ import {
   DialogTitle
 } from '../ui/dialog';
 import { Input } from '../ui/input';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { DeletionReportingDialog } from '../DeletionReportingDialog';
 import { cleanupWorktreeTerminals } from '../TerminalGrid';
 import { backend } from '@/services/backend';
+import { clearAgentCommandForWorktree, type AgentCommand } from '@/services/worktreeAgentCommands';
 import type { Worktree, WorktreeDeletionStep } from './types';
 import { getDeletionBranchName } from './utils';
 
@@ -21,7 +24,7 @@ interface WorktreePanelDialogsProps {
   worktrees: Worktree[];
   showNewBranchDialog: boolean;
   onShowNewBranchDialogChange: (open: boolean) => void;
-  onCreateBranch: (branchName: string) => Promise<boolean>;
+  onCreateBranch: (branchName: string, agentCommand: AgentCommand) => Promise<boolean>;
   worktreeToDelete: Worktree | null;
   onCancelDelete: () => void;
   onSelectWorktree: (path: string) => void;
@@ -41,6 +44,7 @@ export function WorktreePanelDialogs({
   onReloadWorktrees
 }: WorktreePanelDialogsProps) {
   const [newBranchName, setNewBranchName] = useState('');
+  const [agentCommand, setAgentCommand] = useState<AgentCommand>('codex');
   const [showDeletionReporting, setShowDeletionReporting] = useState(false);
   const [deletionBranchName, setDeletionBranchName] = useState('');
   const [deletionWorktreePath, setDeletionWorktreePath] = useState('');
@@ -59,12 +63,12 @@ export function WorktreePanelDialogs({
   );
 
   const handleCreateBranch = useCallback(async () => {
-    const created = await onCreateBranch(newBranchName);
+    const created = await onCreateBranch(newBranchName, agentCommand);
     if (!created) return;
 
     onShowNewBranchDialogChange(false);
     setNewBranchName('');
-  }, [newBranchName, onCreateBranch, onShowNewBranchDialogChange]);
+  }, [agentCommand, newBranchName, onCreateBranch, onShowNewBranchDialogChange]);
 
   const confirmDeleteWorktree = useCallback(async () => {
     if (!worktreeToDelete) return;
@@ -100,6 +104,7 @@ export function WorktreePanelDialogs({
       }
 
       cleanupWorktreeTerminals(deletingWorktree.path);
+      clearAgentCommandForWorktree(deletingWorktree.path);
 
       updateDeletionStep(1, { status: 'in-progress' });
       updateDeletionStep(2, { status: 'in-progress' });
@@ -189,7 +194,7 @@ export function WorktreePanelDialogs({
               Creates a git worktree on its own branch, so an agent can work there in isolation
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 space-y-4">
             <Input
               placeholder="feature-name"
               value={newBranchName}
@@ -200,6 +205,24 @@ export function WorktreePanelDialogs({
                 }
               }}
             />
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">Agent tool</div>
+              <Tabs
+                value={agentCommand}
+                onValueChange={(value) => setAgentCommand(value as AgentCommand)}
+              >
+                <TabsList className="grid w-full grid-cols-2 h-9">
+                  <TabsTrigger value="codex" className="h-7 gap-1.5 text-xs">
+                    <Code2 className="h-3.5 w-3.5" />
+                    Codex
+                  </TabsTrigger>
+                  <TabsTrigger value="pi" className="h-7 gap-1.5 text-xs">
+                    <Terminal className="h-3.5 w-3.5" />
+                    Pi
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => onShowNewBranchDialogChange(false)}>

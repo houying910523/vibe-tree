@@ -8,6 +8,8 @@ interface TerminalManagerProps {
   worktreePath: string;
   projectId?: string;
   theme?: 'light' | 'dark';
+  cacheKey?: string;
+  initialCommand?: string;
 }
 
 interface TerminalInstance {
@@ -15,6 +17,7 @@ interface TerminalInstance {
   worktreePath: string;
   portalNode: HtmlPortalNode;
   processId?: string;
+  initialCommand?: string;
 }
 
 // Grid node can be either a terminal or a split container
@@ -47,9 +50,10 @@ const worktreeGridCache = new Map<string, WorktreeGrid>();
  * This prevents stale terminal DOM nodes from persisting after worktree deletion.
  */
 export function cleanupWorktreeTerminals(worktreePath: string): void {
-  if (worktreeGridCache.has(worktreePath)) {
+  for (const key of [worktreePath, `${worktreePath}:agent`]) {
+    if (!worktreeGridCache.has(key)) continue;
     console.log(`[TerminalGrid] Cleaning up terminal cache for worktree: ${worktreePath}`);
-    worktreeGridCache.delete(worktreePath);
+    worktreeGridCache.delete(key);
   }
 }
 
@@ -94,7 +98,13 @@ function countTerminals(node: GridNode): number {
   return node.children.reduce((sum, child) => sum + countTerminals(child), 0);
 }
 
-export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManagerProps) {
+export function TerminalGrid({
+  worktreePath,
+  projectId,
+  theme,
+  cacheKey = worktreePath,
+  initialCommand
+}: TerminalManagerProps) {
   const [worktreeGrids, setWorktreeGrids] = useState<Map<string, WorktreeGrid>>(worktreeGridCache);
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalProcessIds = useRef<Map<string, string>>(new Map());
@@ -110,7 +120,7 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
         terminalsBeingClosed.current.delete(terminalId);
 
         // Actually close the terminal now that process is cleaned up
-        const grid = worktreeGridCache.get(worktreePath);
+        const grid = worktreeGridCache.get(cacheKey);
         if (grid) {
           closeTerminalFromGrid(grid, terminalId);
         }
@@ -125,16 +135,17 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
 
   // Create or get grid for current worktree
   useEffect(() => {
-    if (!worktreeGridCache.has(worktreePath)) {
+    if (!worktreeGridCache.has(cacheKey)) {
       console.log('Creating initial terminal for:', worktreePath);
 
       // Create a new terminal instance for this worktree
-      const terminalId = `${worktreePath}-${Date.now()}`;
+      const terminalId = `${cacheKey}-${Date.now()}`;
       const portalNode = createHtmlPortalNode();
       const terminal: TerminalInstance = {
         id: terminalId,
         worktreePath,
-        portalNode
+        portalNode,
+        initialCommand
       };
 
       const worktreeData: WorktreeGrid = {
@@ -147,17 +158,17 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
       };
 
       // Add to global cache
-      worktreeGridCache.set(worktreePath, worktreeData);
+      worktreeGridCache.set(cacheKey, worktreeData);
 
       // Update state to trigger re-render
       setWorktreeGrids(new Map(worktreeGridCache));
     }
-  }, [worktreePath]);
+  }, [cacheKey, initialCommand, worktreePath]);
 
   // Handle terminal split
   const handleSplit = useCallback(
     (terminalId: string, direction: 'horizontal' | 'vertical') => {
-      const grid = worktreeGridCache.get(worktreePath);
+      const grid = worktreeGridCache.get(cacheKey);
       if (!grid) return;
 
       // Find the terminal node to split
@@ -168,7 +179,7 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
       if (node.type !== 'terminal') return;
 
       // Create a new terminal instance
-      const newTerminalId = `${worktreePath}-${Date.now()}`;
+      const newTerminalId = `${cacheKey}-${Date.now()}`;
       const portalNode = createHtmlPortalNode();
       const newTerminal: TerminalInstance = {
         id: newTerminalId,
@@ -205,13 +216,13 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
       }
 
       // Force a new grid reference to ensure React detects the change
-      worktreeGridCache.set(worktreePath, { ...grid });
+      worktreeGridCache.set(cacheKey, { ...grid });
 
       // Update state to trigger re-render; each terminal's ResizeObserver
       // refits it when its pane changes size
       setWorktreeGrids(new Map(worktreeGridCache));
     },
-    [worktreePath]
+    [cacheKey, worktreePath]
   );
 
   // Helper function to close terminal from grid
@@ -260,18 +271,18 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
       }
 
       // Force a new grid reference to ensure React detects the change
-      worktreeGridCache.set(worktreePath, { ...grid });
+      worktreeGridCache.set(cacheKey, { ...grid });
 
       // Update state to trigger re-render
       setWorktreeGrids(new Map(worktreeGridCache));
     },
-    [worktreePath]
+    [cacheKey]
   );
 
   // Handle terminal close - terminates PTY process immediately with SIGKILL
   const handleClose = useCallback(
     (terminalId: string) => {
-      const grid = worktreeGridCache.get(worktreePath);
+      const grid = worktreeGridCache.get(cacheKey);
       if (!grid) return;
 
       // Don't allow closing if it's the last terminal
@@ -325,7 +336,7 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
         terminalsBeingClosed.current.delete(terminalId);
       }
     },
-    [worktreePath, closeTerminalFromGrid]
+    [cacheKey, closeTerminalFromGrid]
   );
 
   // Callback to track process IDs from terminals
@@ -372,8 +383,8 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
 
   // Get current grid
   const currentGrid = useMemo(() => {
-    return worktreeGrids.get(worktreePath);
-  }, [worktreeGrids, worktreePath]);
+    return worktreeGrids.get(cacheKey);
+  }, [cacheKey, worktreeGrids]);
 
   // Get all terminals from current grid
   const currentTerminals = useMemo(() => {
@@ -459,6 +470,7 @@ export function TerminalGrid({ worktreePath, projectId, theme }: TerminalManager
               projectId={projectId}
               theme={theme}
               terminalId={terminal.id}
+              initialCommand={terminal.initialCommand}
               isVisible={isCurrentTerminal}
               onSplitVertical={() => handleSplit(terminal.id, 'vertical')}
               onSplitHorizontal={() => handleSplit(terminal.id, 'horizontal')}

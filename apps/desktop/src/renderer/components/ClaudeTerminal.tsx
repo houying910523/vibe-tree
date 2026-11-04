@@ -37,6 +37,7 @@ interface ClaudeTerminalProps {
   onClose?: () => void;
   canClose?: boolean;
   onProcessIdChange?: (processId: string) => void;
+  initialCommand?: string;
 }
 
 // Cache for terminal states per worktree
@@ -100,7 +101,8 @@ export function ClaudeTerminal({
   onSplitHorizontal,
   onClose,
   canClose = false,
-  onProcessIdChange
+  onProcessIdChange,
+  initialCommand
 }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
@@ -109,6 +111,8 @@ export function ClaudeTerminal({
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const removeListenersRef = useRef<Array<() => void>>([]);
+  const initialCommandRef = useRef(initialCommand);
+  const initialCommandSentRef = useRef(false);
   // Guards startShell against concurrent runs (StrictMode double-invoke,
   // fast worktree switches): a stale run must not register listeners, or
   // every keystroke gets written to the PTY once per leaked listener
@@ -952,6 +956,11 @@ export function ClaudeTerminal({
           removeExitListener,
           () => clearInterval(saveInterval)
         ];
+
+        if (result.isNew && initialCommandRef.current && !initialCommandSentRef.current) {
+          await backend.shell.write(result.processId!, `${initialCommandRef.current}\r`);
+          initialCommandSentRef.current = true;
+        }
       } catch (error) {
         terminal.writeln(`\r\nError starting shell: ${error}\r\n`);
       }
