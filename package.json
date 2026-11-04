@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "package:desktop": "pnpm --filter @vibetree/desktop package",
     "fix:electron": "./scripts/fix-electron.sh",
+    "postinstall": "pnpm fix:electron",
     "prepare": "husky",
     "start:desktop": "pnpm --filter @vibetree/desktop start"
   },
