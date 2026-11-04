@@ -226,17 +226,17 @@ export function WorktreePanel({
       const result = await backend.git.addWorktree(projectPath, newBranchName);
       if (result.hook && !result.hook.ok) {
         toast({
-          title: 'Worktree created, post-create hook failed',
+          title: 'Worktree created, setup hook failed',
           description: result.hook.timedOut
-            ? 'The .vibetree/hooks/post-create script timed out.'
-            : `The .vibetree/hooks/post-create script exited with code ${result.hook.exitCode}.`,
+            ? 'The configured worktree setup hook timed out.'
+            : `The configured worktree setup hook exited with code ${result.hook.exitCode}.`,
           variant: 'destructive'
         });
       } else {
         toast({
           title: 'Success',
           description: result.hook
-            ? `Created worktree for branch ${result.branch} (post-create hook ran)`
+            ? `Created worktree for branch ${result.branch} (setup hook ran)`
             : `Created worktree for branch ${result.branch}`
         });
       }
@@ -564,7 +564,7 @@ export function WorktreePanel({
                   <strong>Path:</strong> {worktreeToDelete.path}
                 </p>
                 <p className="text-sm text-destructive mt-2">
-                   Both the worktree directory and git branch will be permanently deleted.
+                  Both the worktree directory and git branch will be permanently deleted.
                 </p>
               </div>
             )}

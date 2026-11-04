@@ -66,7 +66,7 @@ Startup flow:
 `packages/core` contains the platform-neutral domain logic:
 
 - `utils/git.ts`: git worktree list/create/remove/status/diff operations.
-- `utils/worktree-hooks.ts`: `.vibetree/hooks/post-create` and `pre-remove`.
+- `utils/worktree-hooks.ts`: `.vibetree/.git-hook` commands plus legacy `.vibetree/hooks/post-create` and `pre-remove` scripts.
 - `services/ShellSessionManager.ts`: PTY lifecycle, reconnect behavior, and scrollback buffers.
 - `services/OutputBuffer.ts`: bounded terminal output history.
 - `adapters/WebSocketAdapter.ts`: client-side request/response and event protocol.

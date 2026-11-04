@@ -50,27 +50,35 @@ pnpm dev:desktop    # desktop app
 
 ## Features
 
-| Feature | Description |
-| --- | --- |
-| Parallel worktrees | One isolated checkout, branch, and terminal per task |
-| Any agent CLI | It is a real terminal: claude, codex, gemini, aider, or plain shells |
-| Persistent sessions | Terminals keep running and scrollback survives reloads and reconnects |
-| Fleet status | See which agents are working, waiting, or done; a ding when one needs you |
-| Changes view | Review the diff beside the terminal and send a note back as the agent's next prompt |
-| Browser preview | Dev server URLs are detected and opened next to the terminal |
-| Lifecycle hooks | Run your own scripts when worktrees are created or removed |
+| Feature             | Description                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| Parallel worktrees  | One isolated checkout, branch, and terminal per task                                |
+| Any agent CLI       | It is a real terminal: claude, codex, gemini, aider, or plain shells                |
+| Persistent sessions | Terminals keep running and scrollback survives reloads and reconnects               |
+| Fleet status        | See which agents are working, waiting, or done; a ding when one needs you           |
+| Changes view        | Review the diff beside the terminal and send a note back as the agent's next prompt |
+| Browser preview     | Dev server URLs are detected and opened next to the terminal                        |
+| Lifecycle hooks     | Run your own setup/cleanup commands when worktrees are created or removed           |
 
 ## Worktree hooks
 
-Executable scripts in your repository, using the same trust model as git hooks:
+Preferred config: add a `.vibetree/.git-hook` file in your repository.
 
-```bash
-mkdir -p .vibetree/hooks
-printf '#!/bin/sh\nnpm install\n' > .vibetree/hooks/post-create
-chmod +x .vibetree/hooks/post-create
+```yml
+worktree:
+  add:
+    post-hook: pnpm install
 ```
 
-`post-create` runs in each new worktree; `pre-remove` runs before deletion and can never block it.
+That command runs inside each new worktree after `git worktree add` succeeds. You can also configure cleanup:
+
+```yml
+worktree:
+  remove:
+    pre-hook: pkill -f vite
+```
+
+Legacy executable scripts in `.vibetree/hooks/post-create` and `.vibetree/hooks/pre-remove` are still supported when `.vibetree/.git-hook` does not define that hook. `pre-remove` runs before deletion and can never block it.
 
 ## Security
 

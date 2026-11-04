@@ -1,12 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import {
-  findWorktreeHook,
-  runWorktreeHook,
-  runWorktreeHookIfPresent
-} from './worktree-hooks';
+import { findWorktreeHook, runWorktreeHook, runWorktreeHookIfPresent } from './worktree-hooks';
 
 const isPosix = process.platform !== 'win32';
 
@@ -20,6 +16,7 @@ describe.skipIf(!isPosix)('worktree hooks', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     fs.rmSync(projectPath, { recursive: true, force: true });
     fs.rmSync(worktreePath, { recursive: true, force: true });
   });
@@ -30,6 +27,13 @@ describe.skipIf(!isPosix)('worktree hooks', () => {
     const hookPath = path.join(hooksDir, name);
     fs.writeFileSync(hookPath, script, { mode });
     return hookPath;
+  }
+
+  function writeHookConfig(contents: string): string {
+    const configPath = path.join(projectPath, '.vibetree', '.git-hook');
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, contents);
+    return configPath;
   }
 
   const context = () => ({ projectPath, worktreePath, branch: 'feature-x' });
@@ -44,7 +48,46 @@ describe.skipIf(!isPosix)('worktree hooks', () => {
     expect(findWorktreeHook(projectPath, 'post-create')).toBeNull();
   });
 
-  it('runs a hook with the worktree as cwd and env vars set', async () => {
+  it('runs a configured command hook with the worktree as cwd and env vars set', async () => {
+    writeHookConfig(
+      `worktree:\n  add:\n    post-hook: |\n      echo "cwd=$(pwd)"\n      echo "hook=$VIBETREE_HOOK branch=$VIBETREE_BRANCH"\n      echo "project=$VIBETREE_PROJECT_PATH"\n      echo "worktree=$VIBETREE_WORKTREE_PATH"\n`
+    );
+
+    const result = await runWorktreeHookIfPresent('post-create', context());
+
+    expect(result).toBeDefined();
+    expect(result!.ok).toBe(true);
+    expect(result!.exitCode).toBe(0);
+    expect(result!.output).toContain(`cwd=${fs.realpathSync(worktreePath)}`);
+    expect(result!.output).toContain('hook=post-create branch=feature-x');
+    expect(result!.output).toContain(`project=${projectPath}`);
+    expect(result!.output).toContain(`worktree=${worktreePath}`);
+  });
+
+  it('prefers configured command hooks over legacy executable scripts', async () => {
+    writeHookConfig('worktree:\n  add:\n    post-hook: echo configured-hook\n');
+    writeHook('post-create', '#!/bin/sh\necho legacy-script\n');
+
+    const result = await runWorktreeHookIfPresent('post-create', context());
+
+    expect(result!.ok).toBe(true);
+    expect(result!.output).toContain('configured-hook');
+    expect(result!.output).not.toContain('legacy-script');
+  });
+
+  it('falls back to the legacy executable hook when .git-hook is malformed', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    writeHookConfig('worktree: [\n');
+    writeHook('post-create', '#!/bin/sh\necho legacy-script\n');
+
+    const result = await runWorktreeHookIfPresent('post-create', context());
+
+    expect(warnSpy).toHaveBeenCalled();
+    expect(result!.ok).toBe(true);
+    expect(result!.output).toContain('legacy-script');
+  });
+
+  it('runs a legacy executable hook with the worktree as cwd and env vars set', async () => {
     writeHook(
       'post-create',
       '#!/bin/sh\necho "cwd=$(pwd)"\necho "hook=$VIBETREE_HOOK branch=$VIBETREE_BRANCH"\necho "project=$VIBETREE_PROJECT_PATH"\necho "worktree=$VIBETREE_WORKTREE_PATH"\n'

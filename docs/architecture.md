@@ -142,14 +142,24 @@ apps/desktop/src/
 
 ## 6. Worktree Hooks
 
-项目可以提供：
+项目可以通过 `.vibetree/.git-hook` 配置 worktree 生命周期命令：
+
+```yml
+worktree:
+  add:
+    post-hook: pnpm install
+  remove:
+    pre-hook: pkill -f vite
+```
+
+实现位于 `packages/core/src/utils/worktree-hooks.ts`。如果 `.git-hook` 没有配置对应阶段，仍会回退兼容旧的：
 
 ```text
 .vibetree/hooks/post-create
 .vibetree/hooks/pre-remove
 ```
 
-实现位于 `packages/core/src/utils/worktree-hooks.ts`。hook 运行失败会记录并返回 warning，但不会阻塞 worktree 删除。
+hook 运行失败会记录并返回 warning，但不会阻塞 worktree 删除。
 
 ## 7. 验证命令
 
