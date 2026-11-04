@@ -11,12 +11,16 @@ import {
 } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-import { DeletionReportingDialog } from '../DeletionReportingDialog';
+import { DeletionReportingToast } from '../DeletionReportingDialog';
 import { cleanupWorktreeTerminals } from '../TerminalGrid';
+import { useToast } from '../ui/use-toast';
 import { backend } from '@/services/backend';
 import { clearAgentCommandForWorktree, type AgentCommand } from '@/services/worktreeAgentCommands';
 import type { Worktree, WorktreeDeletionStep } from './types';
 import { getDeletionBranchName } from './utils';
+
+const DELETION_TOAST_DURATION = 2_147_483_647;
+const DELETION_SUCCESS_DISMISS_DELAY = 2500;
 
 interface WorktreePanelDialogsProps {
   projectPath: string;
@@ -43,24 +47,9 @@ export function WorktreePanelDialogs({
   onSelectWorktree,
   onReloadWorktrees
 }: WorktreePanelDialogsProps) {
+  const { toast } = useToast();
   const [newBranchName, setNewBranchName] = useState('');
   const [agentCommand, setAgentCommand] = useState<AgentCommand>('codex');
-  const [showDeletionReporting, setShowDeletionReporting] = useState(false);
-  const [deletionBranchName, setDeletionBranchName] = useState('');
-  const [deletionWorktreePath, setDeletionWorktreePath] = useState('');
-  const [deletionSteps, setDeletionSteps] = useState<WorktreeDeletionStep[]>([]);
-  const [isDeletionComplete, setIsDeletionComplete] = useState(false);
-
-  const updateDeletionStep = useCallback(
-    (index: number, updates: Partial<WorktreeDeletionStep>) => {
-      setDeletionSteps((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], ...updates };
-        return next;
-      });
-    },
-    []
-  );
 
   const handleCreateBranch = useCallback(async () => {
     const created = await onCreateBranch(newBranchName, agentCommand);
@@ -75,18 +64,49 @@ export function WorktreePanelDialogs({
 
     const deletingWorktree = worktreeToDelete;
     const branchName = getDeletionBranchName(deletingWorktree);
-    setDeletionBranchName(branchName);
-    setDeletionWorktreePath(deletingWorktree.path);
     onCancelDelete();
 
-    setDeletionSteps([
+    const deletionSteps: WorktreeDeletionStep[] = [
       { message: 'Killing terminal processes...', status: 'pending' },
       { message: 'Running pre-remove hook...', status: 'pending' },
       { message: 'Removing worktree directory...', status: 'pending' },
       { message: 'Deleting git branch...', status: 'pending' }
-    ]);
-    setIsDeletionComplete(false);
-    setShowDeletionReporting(true);
+    ];
+    const deletionToast = toast({
+      title: 'Deleting Worktree',
+      description: (
+        <DeletionReportingToast
+          branchName={branchName}
+          worktreePath={deletingWorktree.path}
+          steps={deletionSteps}
+        />
+      ),
+      duration: DELETION_TOAST_DURATION
+    });
+    const renderDeletionToast = (isComplete = false) => {
+      const hasErrors = deletionSteps.some((step) => step.status === 'error');
+      deletionToast.update({
+        id: deletionToast.id,
+        title: isComplete
+          ? hasErrors
+            ? 'Deletion Failed'
+            : 'Deletion Complete'
+          : 'Deleting Worktree',
+        description: (
+          <DeletionReportingToast
+            branchName={branchName}
+            worktreePath={deletingWorktree.path}
+            steps={deletionSteps.map((step) => ({ ...step }))}
+          />
+        ),
+        duration: DELETION_TOAST_DURATION,
+        variant: hasErrors ? 'destructive' : 'default'
+      });
+    };
+    const updateDeletionStep = (index: number, updates: Partial<WorktreeDeletionStep>) => {
+      deletionSteps[index] = { ...deletionSteps[index], ...updates };
+      renderDeletionToast();
+    };
 
     try {
       updateDeletionStep(0, { status: 'in-progress' });
@@ -162,8 +182,16 @@ export function WorktreePanelDialogs({
       onReloadWorktrees();
     } catch (error) {
       console.error('Unexpected error during deletion:', error);
+      deletionSteps.push({
+        message: 'Unexpected deletion error',
+        status: 'error',
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
     } finally {
-      setIsDeletionComplete(true);
+      renderDeletionToast(true);
+      if (!deletionSteps.some((step) => step.status === 'error')) {
+        setTimeout(() => deletionToast.dismiss(), DELETION_SUCCESS_DISMISS_DELAY);
+      }
     }
   }, [
     onCancelDelete,
@@ -171,18 +199,10 @@ export function WorktreePanelDialogs({
     onSelectWorktree,
     projectPath,
     selectedWorktree,
-    updateDeletionStep,
+    toast,
     worktreeToDelete,
     worktrees
   ]);
-
-  const closeDeletionReporting = useCallback(() => {
-    setShowDeletionReporting(false);
-    setDeletionSteps([]);
-    setIsDeletionComplete(false);
-    setDeletionBranchName('');
-    setDeletionWorktreePath('');
-  }, []);
 
   return (
     <>
@@ -273,14 +293,6 @@ export function WorktreePanelDialogs({
         </DialogContent>
       </Dialog>
 
-      <DeletionReportingDialog
-        open={showDeletionReporting}
-        branchName={deletionBranchName}
-        worktreePath={deletionWorktreePath}
-        steps={deletionSteps}
-        isComplete={isDeletionComplete}
-        onClose={closeDeletionReporting}
-      />
     </>
   );
 }
