@@ -8,9 +8,16 @@ import {
   DialogHeader,
   DialogTitle
 } from './ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from './ui/dropdown-menu';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { Check, GitBranch, Plus, RefreshCw, Trash2, Clock } from 'lucide-react';
+import { Check, ChevronDown, Clock, GitBranch, Plus, RefreshCw } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { isProtectedBranch } from '../utils/worktree';
 import { DeletionReportingDialog } from './DeletionReportingDialog';
@@ -253,9 +260,7 @@ export function WorktreePanel({
     }
   };
 
-  const handleDeleteWorktree = (worktree: Worktree, event: React.MouseEvent) => {
-    event.stopPropagation();
-
+  const openDeleteWorktreeDialog = (worktree: Worktree) => {
     if (worktrees.length <= 1) {
       toast({
         title: 'Error',
@@ -446,7 +451,7 @@ export function WorktreePanel({
             })
             .map((worktree) => {
               const isSelected = selectedWorktree === worktree.path;
-              const canDelete =
+              const canShowActions =
                 worktrees.length > 1 && !!worktree.branch && !isProtectedBranch(worktree.branch);
               const changeCount = changeCounts[worktree.path];
               return (
@@ -472,7 +477,7 @@ export function WorktreePanel({
                     </span>
                     <span
                       className={`ml-auto flex items-center gap-1.5 flex-shrink-0 transition-opacity ${
-                        canDelete ? 'group-hover:opacity-0' : ''
+                        canShowActions ? 'group-hover:opacity-0' : ''
                       }`}
                     >
                       {worktreesWithSchedulers.has(worktree.path) && (
@@ -498,16 +503,32 @@ export function WorktreePanel({
                         ))}
                     </span>
                   </button>
-                  {canDelete && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500"
-                      onClick={(e) => handleDeleteWorktree(worktree, e)}
-                      data-testid="delete-worktree-button"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  {canShowActions && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid="worktree-actions-button"
+                          aria-label="Open worktree actions"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem disabled>合并到根worktree</DropdownMenuItem>
+                        <DropdownMenuItem disabled>合并并删除</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => openDeleteWorktreeDialog(worktree)}
+                        >
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               );
