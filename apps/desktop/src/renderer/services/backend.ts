@@ -6,7 +6,8 @@ import type {
   Worktree,
   GitStatus,
   WorktreeAddResult,
-  WorktreeRemoveResult
+  WorktreeRemoveResult,
+  WorktreeGitOperationResult
 } from '@vibetree/core';
 
 /**
@@ -126,6 +127,20 @@ export const backend = {
     ): Promise<WorktreeRemoveResult> => {
       const adapter = await getAdapter();
       return adapter.removeWorktree(projectPath, worktreePath, branchName);
+    },
+    mergeWorktreeIntoRoot: async (
+      projectPath: string,
+      worktreePath: string
+    ): Promise<WorktreeGitOperationResult> => {
+      const adapter = await getAdapter();
+      return adapter.mergeWorktreeIntoRoot(projectPath, worktreePath);
+    },
+    rebaseWorktreeOntoRoot: async (
+      projectPath: string,
+      worktreePath: string
+    ): Promise<WorktreeGitOperationResult> => {
+      const adapter = await getAdapter();
+      return adapter.rebaseWorktreeOntoRoot(projectPath, worktreePath);
     },
     status: async (worktreePath: string): Promise<GitStatus[]> => {
       const adapter = await getAdapter();

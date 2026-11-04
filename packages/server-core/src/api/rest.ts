@@ -5,6 +5,8 @@ import {
   getGitDiff,
   addWorktree,
   removeWorktree,
+  mergeWorktreeIntoRoot,
+  rebaseWorktreeOntoRoot,
   validateProjects,
   readProjectConfig,
   writeProjectConfig
@@ -163,6 +165,22 @@ export function setupRestRoutes(app: Express, services: Services) {
       res.json(
         await removeWorktree(req.body.projectPath, req.body.worktreePath, req.body.branchName)
       );
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/git/worktree/merge', authService.requireAuth, async (req, res) => {
+    try {
+      res.json(await mergeWorktreeIntoRoot(req.body.projectPath, req.body.worktreePath));
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/git/worktree/rebase', authService.requireAuth, async (req, res) => {
+    try {
+      res.json(await rebaseWorktreeOntoRoot(req.body.projectPath, req.body.worktreePath));
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }

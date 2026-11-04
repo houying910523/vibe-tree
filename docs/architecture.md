@@ -67,6 +67,8 @@ Worktree 来自 `git worktree list --porcelain`，核心类型在 `packages/core
 - `listWorktrees(projectPath)`
 - `addWorktree(projectPath, branchName)`
 - `removeWorktree(projectPath, worktreePath, branchName)`
+- `mergeWorktreeIntoRoot(projectPath, worktreePath)`
+- `rebaseWorktreeOntoRoot(projectPath, worktreePath)`
 - `getGitStatus(worktreePath)`
 - `getGitDiff(worktreePath, filePath?)`
 - `getGitDiffStaged(worktreePath, filePath?)`

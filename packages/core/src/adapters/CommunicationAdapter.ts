@@ -7,6 +7,7 @@ import {
   ShellResizeResult,
   WorktreeAddResult,
   WorktreeRemoveResult,
+  WorktreeGitOperationResult,
   IDE
 } from '../types';
 
@@ -122,6 +123,22 @@ export interface CommunicationAdapter {
   ): Promise<WorktreeRemoveResult>;
 
   /**
+   * Merge a worktree branch into the root worktree branch
+   */
+  mergeWorktreeIntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult>;
+
+  /**
+   * Rebase a worktree branch onto the root worktree branch
+   */
+  rebaseWorktreeOntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult>;
+
+  /**
    * Detect installed IDEs on the system
    * @returns Array of available IDEs with their launch commands
    */
@@ -183,6 +200,14 @@ export abstract class BaseAdapter implements CommunicationAdapter {
     worktreePath: string,
     branchName: string
   ): Promise<WorktreeRemoveResult>;
+  abstract mergeWorktreeIntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult>;
+  abstract rebaseWorktreeOntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult>;
 
   abstract detectIDEs(): Promise<IDE[]>;
   abstract openInIDE(

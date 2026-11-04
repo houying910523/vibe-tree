@@ -5,9 +5,10 @@ import {
   GitStatus,
   WorktreeAddResult,
   WorktreeRemoveResult,
+  WorktreeGitOperationResult,
   ProjectValidationResult
 } from '../types';
-import { parseWorktrees, parseGitStatus } from './git-parser';
+import { parseWorktrees, parseGitStatus, extractBranchName } from './git-parser';
 import { runWorktreeHookIfPresent } from './worktree-hooks';
 
 /**
@@ -205,6 +206,60 @@ export async function removeWorktree(
   } catch (error) {
     throw new Error(`Failed to remove worktree: ${error}`);
   }
+}
+
+function branchRef(branchName: string): string {
+  return `refs/heads/${branchName}`;
+}
+
+async function getCheckedOutBranch(worktreePath: string, label: string): Promise<string> {
+  const branchName = await getCurrentBranch(worktreePath);
+  if (branchName === 'HEAD') {
+    throw new Error(`${label} worktree is in detached HEAD state`);
+  }
+  return extractBranchName(branchName);
+}
+
+/**
+ * Merge a worktree branch into the root worktree branch
+ * @param projectPath - Path to the root worktree
+ * @param worktreePath - Path to the source worktree
+ * @returns Result with source and target branches
+ */
+export async function mergeWorktreeIntoRoot(
+  projectPath: string,
+  worktreePath: string
+): Promise<WorktreeGitOperationResult> {
+  const sourceBranch = await getCheckedOutBranch(worktreePath, 'Source');
+  const targetBranch = await getCheckedOutBranch(projectPath, 'Root');
+
+  if (sourceBranch === targetBranch) {
+    throw new Error(`Cannot merge ${sourceBranch} into itself`);
+  }
+
+  const output = await executeGitCommand(['merge', branchRef(sourceBranch)], projectPath);
+  return { success: true, sourceBranch, targetBranch, output };
+}
+
+/**
+ * Rebase a worktree branch onto the root worktree branch
+ * @param projectPath - Path to the root worktree
+ * @param worktreePath - Path to the source worktree
+ * @returns Result with source and target branches
+ */
+export async function rebaseWorktreeOntoRoot(
+  projectPath: string,
+  worktreePath: string
+): Promise<WorktreeGitOperationResult> {
+  const sourceBranch = await getCheckedOutBranch(worktreePath, 'Source');
+  const targetBranch = await getCheckedOutBranch(projectPath, 'Root');
+
+  if (sourceBranch === targetBranch) {
+    throw new Error(`Cannot rebase ${sourceBranch} onto itself`);
+  }
+
+  const output = await executeGitCommand(['rebase', branchRef(targetBranch)], worktreePath);
+  return { success: true, sourceBranch, targetBranch, output };
 }
 
 /**

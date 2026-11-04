@@ -92,10 +92,12 @@ export function WorktreePanel({
       </div>
 
       <WorktreePanelList
+        projectPath={projectPath}
         worktrees={worktrees}
         selectedWorktree={selectedWorktree}
         onSelectWorktree={onSelectWorktree}
         onDeleteWorktree={handleDeleteWorktree}
+        onReloadWorktrees={loadWorktrees}
       />
 
       <WorktreePanelDialogs

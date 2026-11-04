@@ -6,7 +6,9 @@ import {
   getGitDiff,
   getGitDiffStaged,
   addWorktree,
-  removeWorktree
+  removeWorktree,
+  mergeWorktreeIntoRoot,
+  rebaseWorktreeOntoRoot
 } from '@vibetree/core';
 import { ShellManager } from '../services/ShellManager';
 import { AgentStateTracker } from '../services/AgentStateTracker';
@@ -191,9 +193,7 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
             const jwtToken = await authService.pairDevice(token, message.payload);
             deviceId = message.payload.deviceId;
             authenticated = true;
-            ws.send(
-              JSON.stringify({ type: 'auth:success', payload: { jwt: jwtToken, deviceId } })
-            );
+            ws.send(JSON.stringify({ type: 'auth:success', payload: { jwt: jwtToken, deviceId } }));
           } catch (error) {
             ws.send(
               JSON.stringify({ type: 'auth:error', payload: { error: (error as Error).message } })
@@ -328,13 +328,19 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
           }
 
           case 'shell:get-worktree-sessions': {
-            respond('shell:get-worktree-sessions:response', shellManager.getWorktreeSessionCounts());
+            respond(
+              'shell:get-worktree-sessions:response',
+              shellManager.getWorktreeSessionCounts()
+            );
             break;
           }
 
           case 'git:worktree:list': {
             try {
-              respond('git:worktree:list:response', await listWorktrees(message.payload.projectPath));
+              respond(
+                'git:worktree:list:response',
+                await listWorktrees(message.payload.projectPath)
+              );
             } catch (error) {
               respondError(error);
             }
@@ -401,6 +407,36 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
             break;
           }
 
+          case 'git:worktree:merge': {
+            try {
+              respond(
+                'git:worktree:merge:response',
+                await mergeWorktreeIntoRoot(
+                  message.payload.projectPath,
+                  message.payload.worktreePath
+                )
+              );
+            } catch (error) {
+              respondError(error);
+            }
+            break;
+          }
+
+          case 'git:worktree:rebase': {
+            try {
+              respond(
+                'git:worktree:rebase:response',
+                await rebaseWorktreeOntoRoot(
+                  message.payload.projectPath,
+                  message.payload.worktreePath
+                )
+              );
+            } catch (error) {
+              respondError(error);
+            }
+            break;
+          }
+
           default:
             ws.send(
               JSON.stringify({
@@ -412,9 +448,7 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
-        ws.send(
-          JSON.stringify({ type: 'error', payload: { error: 'Failed to process message' } })
-        );
+        ws.send(JSON.stringify({ type: 'error', payload: { error: 'Failed to process message' } }));
       }
     });
 

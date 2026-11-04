@@ -11,6 +11,7 @@ import {
 } from '../ui/dropdown-menu';
 import { ScrollArea } from '../ui/scroll-area';
 import { Button } from '../ui/button';
+import { useToast } from '../ui/use-toast';
 import type { Worktree } from './types';
 import {
   canDeleteWorktree,
@@ -20,21 +21,27 @@ import {
 } from './utils';
 
 interface WorktreePanelListProps {
+  projectPath: string;
   worktrees: Worktree[];
   selectedWorktree: string | null;
   onSelectWorktree: (path: string) => void;
   onDeleteWorktree: (worktree: Worktree) => void;
+  onReloadWorktrees: () => void;
 }
 
 export function WorktreePanelList({
+  projectPath,
   worktrees,
   selectedWorktree,
   onSelectWorktree,
-  onDeleteWorktree
+  onDeleteWorktree,
+  onReloadWorktrees
 }: WorktreePanelListProps) {
+  const { toast } = useToast();
   const [changeCounts, setChangeCounts] = useState<Record<string, number>>({});
   const [worktreeSessionCounts, setWorktreeSessionCounts] = useState<Record<string, number>>({});
   const [worktreesWithSchedulers, setWorktreesWithSchedulers] = useState<Set<string>>(new Set());
+  const [operatingWorktree, setOperatingWorktree] = useState<string | null>(null);
   const sortedWorktrees = useMemo(() => sortWorktrees(worktrees), [worktrees]);
 
   useEffect(() => {
@@ -97,6 +104,36 @@ export function WorktreePanelList({
       window.removeEventListener(SCHEDULER_STATE_CHANGED_EVENT, updateSchedulerStatus);
     };
   }, []);
+
+  const handleWorktreeGitOperation = useCallback(
+    async (worktree: Worktree, operation: 'merge' | 'rebase') => {
+      setOperatingWorktree(worktree.path);
+      try {
+        const result =
+          operation === 'merge'
+            ? await backend.git.mergeWorktreeIntoRoot(projectPath, worktree.path)
+            : await backend.git.rebaseWorktreeOntoRoot(projectPath, worktree.path);
+
+        toast({
+          title: operation === 'merge' ? 'Merge complete' : 'Rebase complete',
+          description:
+            operation === 'merge'
+              ? `Merged ${result.sourceBranch} into ${result.targetBranch}`
+              : `Rebased ${result.sourceBranch} onto ${result.targetBranch}`
+        });
+        onReloadWorktrees();
+      } catch (error) {
+        toast({
+          title: operation === 'merge' ? 'Merge failed' : 'Rebase failed',
+          description: `${error instanceof Error ? error.message : 'Git command failed'}。命令已中断，请在终端中手动处理。`,
+          variant: 'destructive'
+        });
+      } finally {
+        setOperatingWorktree(null);
+      }
+    },
+    [onReloadWorktrees, projectPath, toast]
+  );
 
   const renderWorktreeStatus = useCallback(
     (worktree: Worktree, canShowActions: boolean) => {
@@ -175,8 +212,18 @@ export function WorktreePanelList({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem disabled>Merge</DropdownMenuItem>
-                    <DropdownMenuItem disabled>Merge and Delete</DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!!operatingWorktree}
+                      onSelect={() => handleWorktreeGitOperation(worktree, 'merge')}
+                    >
+                      Merge
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!!operatingWorktree}
+                      onSelect={() => handleWorktreeGitOperation(worktree, 'rebase')}
+                    >
+                      Rebase
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"

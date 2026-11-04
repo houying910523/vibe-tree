@@ -69,6 +69,13 @@ export interface WorktreeRemoveResult {
   hook?: HookResult;
 }
 
+export interface WorktreeGitOperationResult {
+  success: boolean;
+  sourceBranch: string;
+  targetBranch: string;
+  output: string;
+}
+
 export interface ProjectValidationResult {
   path: string;
   name?: string;

@@ -7,6 +7,7 @@ import type {
   ShellResizeResult,
   WorktreeAddResult,
   WorktreeRemoveResult,
+  WorktreeGitOperationResult,
   IDE
 } from '../types';
 
@@ -41,7 +42,9 @@ export class WebSocketAdapter extends BaseAdapter {
     if (this.connectionPromise) return this.connectionPromise;
 
     this.connectionPromise = new Promise((resolve, reject) => {
-      const url = this.jwt ? `${this.wsUrl}${this.wsUrl.includes('?') ? '&' : '?'}jwt=${this.jwt}` : this.wsUrl;
+      const url = this.jwt
+        ? `${this.wsUrl}${this.wsUrl.includes('?') ? '&' : '?'}jwt=${this.jwt}`
+        : this.wsUrl;
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
@@ -234,6 +237,20 @@ export class WebSocketAdapter extends BaseAdapter {
     branchName: string
   ): Promise<WorktreeRemoveResult> {
     return this.sendMessage('git:worktree:remove', { projectPath, worktreePath, branchName });
+  }
+
+  async mergeWorktreeIntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult> {
+    return this.sendMessage('git:worktree:merge', { projectPath, worktreePath });
+  }
+
+  async rebaseWorktreeOntoRoot(
+    projectPath: string,
+    worktreePath: string
+  ): Promise<WorktreeGitOperationResult> {
+    return this.sendMessage('git:worktree:rebase', { projectPath, worktreePath });
   }
 
   async detectIDEs(): Promise<IDE[]> {
