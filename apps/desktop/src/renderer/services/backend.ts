@@ -63,23 +63,6 @@ function subscribe(attach: (adapter: WebSocketAdapter) => Unsubscribe): Unsubscr
   };
 }
 
-// shortcut: tolerate a hot-reloaded renderer with an older core adapter, remove when deps always rebuild before reload.
-type GitOperationAdapter = {
-  mergeWorktreeIntoRoot?: (
-    projectPath: string,
-    worktreePath: string
-  ) => Promise<WorktreeGitOperationResult>;
-  rebaseWorktreeOntoRoot?: (
-    projectPath: string,
-    worktreePath: string
-  ) => Promise<WorktreeGitOperationResult>;
-  sendMessage<T>(type: string, payload: unknown): Promise<T>;
-};
-
-async function getGitOperationAdapter(): Promise<GitOperationAdapter> {
-  return (await getAdapter()) as unknown as GitOperationAdapter;
-}
-
 export const backend = {
   shell: {
     start: async (
@@ -152,19 +135,15 @@ export const backend = {
       projectPath: string,
       worktreePath: string
     ): Promise<WorktreeGitOperationResult> => {
-      const adapter = await getGitOperationAdapter();
-      return typeof adapter.mergeWorktreeIntoRoot === 'function'
-        ? adapter.mergeWorktreeIntoRoot(projectPath, worktreePath)
-        : adapter.sendMessage('git:worktree:merge', { projectPath, worktreePath });
+      const adapter = await getAdapter();
+      return adapter.mergeWorktreeIntoRoot(projectPath, worktreePath);
     },
     rebaseWorktreeOntoRoot: async (
       projectPath: string,
       worktreePath: string
     ): Promise<WorktreeGitOperationResult> => {
-      const adapter = await getGitOperationAdapter();
-      return typeof adapter.rebaseWorktreeOntoRoot === 'function'
-        ? adapter.rebaseWorktreeOntoRoot(projectPath, worktreePath)
-        : adapter.sendMessage('git:worktree:rebase', { projectPath, worktreePath });
+      const adapter = await getAdapter();
+      return adapter.rebaseWorktreeOntoRoot(projectPath, worktreePath);
     },
     status: async (worktreePath: string): Promise<GitStatus[]> => {
       const adapter = await getAdapter();

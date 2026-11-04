@@ -42,21 +42,21 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
           <TabsList className="h-7 bg-muted p-0.5 rounded-md gap-0.5">
             <TabsTrigger
               value="agent"
-              className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
+              className="h-6 rounded px-4 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
             >
               <Bot className="h-3.5 w-3.5" />
               Agent
             </TabsTrigger>
             <TabsTrigger
               value="terminal"
-              className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
+              className="h-6 rounded px-4 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
             >
               <Terminal className="h-3.5 w-3.5" />
               Terminal
             </TabsTrigger>
             <TabsTrigger
               value="git-diff"
-              className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
+              className="h-6 rounded px-4 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
             >
               <GitBranch className="h-3.5 w-3.5" />
               Changes
@@ -65,15 +65,19 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
         </div>
 
         <TabsContent value="terminal" className="flex-1 m-0 h-full">
-          <TerminalGrid worktreePath={worktreePath} projectId={projectId} theme={theme} />
+          <TerminalGrid
+            worktreePath={worktreePath}
+            projectId={projectId}
+            theme={theme}
+          />
         </TabsContent>
 
         <TabsContent value="agent" className="flex-1 m-0 h-full">
           <TerminalGrid
             worktreePath={worktreePath}
-            cacheKey={`${worktreePath}:agent`}
             projectId={projectId}
             theme={theme}
+            cacheKey={`${worktreePath}:agent`}
             initialCommand={agentCommand}
           />
         </TabsContent>
