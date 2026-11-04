@@ -8,9 +8,7 @@ export interface ShellSettings {
 
 /**
  * Thin facade over the shared ShellSessionManager. The PTY spawn function is
- * injected so this package has no native dependency of its own: the
- * standalone server and the Electron main process each provide their
- * node-pty build.
+ * injected so this package has no native dependency of its own.
  */
 export class ShellManager {
   private sessionManager = ShellSessionManager.getInstance();

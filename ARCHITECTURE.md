@@ -2,80 +2,125 @@
 
 ## Overview
 
-VibeTree runs AI coding agents in parallel git worktrees. It is a pnpm + Turborepo monorepo with one architectural rule: desktop and web share the same backend. The Express/WebSocket server in `packages/server-core` is embedded by the Electron main process (bound to 127.0.0.1 with a per-launch token) and run standalone by `apps/server` for browser and phone clients.
+This fork is a desktop-first VibeTree workspace. It keeps the Electron desktop app, the shared core/backend packages, and the CLI package. Browser/PWA, standalone server app, static site, shared UI package, shared auth package, and Docker deployment files have been removed.
 
-## Directory structure
+The main rule is simple: the desktop renderer talks to the same HTTP/WebSocket backend API that the CLI can target. In desktop mode that backend is embedded inside Electron main and bound to `127.0.0.1` with a per-launch token.
 
-```
+## Directory Structure
+
+```text
 vibe-tree/
   apps/
-    desktop/        Electron app; embeds the server on loopback
-    web/            React PWA; connects to a remote server
-    server/         Standalone server CLI (port discovery, QR pairing,
-                    optional static serving of the built web app)
+    desktop/        Electron app; embeds the backend on loopback
   packages/
-    core/           Shared logic: git operations, worktree hooks,
-                    ShellSessionManager (PTY sessions + scrollback buffers),
-                    WebSocketAdapter, types
-    server-core/    createVibeTreeServer(): Express + ws router, REST API,
-                    AuthService, typed config
-    ui/             Shared xterm Terminal component
-    auth/           Login page and auth context for the web app
-  scripts/          Maintenance scripts (fix-electron, docker-deploy)
+    core/           Shared git, worktree, shell session, adapter, and type logic
+    server-core/    Embeddable Express/WebSocket backend
+    cli/            Command-line client for the backend API
+  scripts/          Local maintenance scripts
+  docs/             Project notes and development docs
 ```
 
-## The unified backend
+## Runtime Shape
 
+```text
+Electron renderer
+  React UI, terminal panes, diff view, settings
+        |
+        | WebSocket + per-launch token
+        v
+Electron main
+  embedded-server.ts
+        |
+        v
+packages/server-core
+  REST routes, WebSocket routes, auth token checks, ShellManager
+        |
+        v
+packages/core
+  git worktree operations, PTY session manager, output buffers, protocol adapter
 ```
-                      +---------------------------+
-   Desktop renderer   |  packages/server-core     |   Web / PWA client
-   (React + xterm)    |  Express + WebSocket      |   (React + xterm)
-        |             |  ShellManager             |        |
-        |  WebSocket  |  AuthService              |  WebSocket
-        +------------>+  git + hooks (core)       +<-------+
-                      +------------+--------------+
-                                   |
-                         ShellSessionManager (core)
-                         one PTY per worktree+terminal,
-                         output buffered for replay
+
+Electron IPC is reserved for native desktop concerns such as opening folders, settings files, notifications, menu events, diagnostics, and IDE launch. Shell and git traffic goes through the embedded backend API instead of broad IPC handlers.
+
+## Desktop App
+
+Main entry points:
+
+- `apps/desktop/src/main/index.ts`
+- `apps/desktop/src/main/embedded-server.ts`
+- `apps/desktop/src/preload/index.ts`
+- `apps/desktop/src/renderer/App.tsx`
+
+Startup flow:
+
+1. Electron main initializes desktop services and settings managers.
+2. `embedded-server.ts` starts `createVibeTreeServer` on an ephemeral loopback port.
+3. Main creates a random static token for the current app launch.
+4. The renderer gets the endpoint through preload IPC (`server:get-endpoint`).
+5. The renderer uses `WebSocketAdapter` for shell, git, and agent-state traffic.
+
+## Shared Packages
+
+### `@vibetree/core`
+
+`packages/core` contains the platform-neutral domain logic:
+
+- `utils/git.ts`: git worktree list/create/remove/status/diff operations.
+- `utils/worktree-hooks.ts`: `.vibetree/hooks/post-create` and `pre-remove`.
+- `services/ShellSessionManager.ts`: PTY lifecycle, reconnect behavior, and scrollback buffers.
+- `services/OutputBuffer.ts`: bounded terminal output history.
+- `adapters/WebSocketAdapter.ts`: client-side request/response and event protocol.
+- `types/index.ts`: shared worktree, git status, and shell session types.
+
+### `@vibetree/server-core`
+
+`packages/server-core` is the embeddable backend used by the desktop app:
+
+- `server.ts`: creates Express, WebSocket server, `ShellManager`, and auth service.
+- `api/rest.ts`: project discovery, config, auth, and REST endpoints.
+- `api/websocket.ts`: shell, git, and agent-state WebSocket protocol.
+- `services/ShellManager.ts`: backend facade over `ShellSessionManager`.
+- `auth/AuthService.ts`: static token and optional auth helpers.
+
+The host injects `node-pty` spawn behavior. This keeps native PTY binding decisions outside the shared backend package.
+
+### `@vibetree/cli`
+
+`packages/cli` is kept as a thin command-line client. It does not directly manage git worktrees or PTYs; it calls the backend REST/WebSocket API.
+
+Useful commands include:
+
+- `vibetree worktrees list`
+- `vibetree worktrees add <branch>`
+- `vibetree worktrees remove <branch>`
+- `vibetree status`
+- `vibetree run <branch> ["prompt"]`
+
+The CLI still expects a reachable backend URL and token. Because the standalone server app was removed, using the CLI against the desktop embedded backend may need a small future workflow for endpoint/token discovery.
+
+## Shell Session Lifecycle
+
+`ShellSessionManager` owns PTY sessions:
+
+- Session identity is based on `worktreePath + terminalId`.
+- Starting the same worktree/terminal attaches to the existing session.
+- PTY output is buffered from the first byte.
+- Client disconnects remove listeners but do not kill the PTY.
+- Reconnects can restore scrollback from `shell:start` or `shell:get-buffer`.
+- Desktop mode disables idle cleanup so sessions live until app quit or explicit termination.
+
+## Build And Test
+
+Common commands:
+
+```bash
+pnpm install
+pnpm build:deps
+pnpm dev:desktop
+pnpm --filter @vibetree/desktop test:run
+pnpm --filter @vibetree/desktop test:e2e
+pnpm --filter @vibetree/cli typecheck
+pnpm typecheck
 ```
 
-- **Transport**: all shell and git traffic uses one WebSocket protocol (`shell:*`, `git:*` messages). The shared client is `WebSocketAdapter` in `packages/core`, used verbatim by both the desktop renderer and the web app.
-- **Desktop embedding**: `apps/desktop/src/main/embedded-server.ts` starts the server on an ephemeral loopback port with a random token; the renderer fetches the endpoint over a single IPC call (`server:get-endpoint`) and connects.
-- **Electron IPC** is reserved for native OS concerns: dialogs, notifications, theme, IDE launching, settings files, menu events, and diagnostics.
-
-## Terminal session lifecycle
-
-`ShellSessionManager` (singleton in `packages/core`) owns all PTYs:
-
-- Session IDs are deterministic per `worktreePath + terminalId`, so a reconnecting client resumes its session instead of spawning a duplicate shell.
-- Output is buffered (bounded, ~100KB) from the moment the PTY starts, even while no client is attached.
-- A client disconnect (page reload, network blip, window close) only detaches that connection's listeners; the session keeps running.
-- On reattach, the `shell:start` response carries the buffered scrollback; clients restore it when their local serialized snapshot is cold.
-- The standalone server reaps sessions idle beyond `SESSION_IDLE_TIMEOUT_MS` (default 24h); the desktop keeps sessions until quit.
-
-## Worktree lifecycle hooks
-
-`packages/core/src/utils/worktree-hooks.ts` runs per-project executable scripts (`.vibetree/hooks/post-create`, `.vibetree/hooks/pre-remove`) around `git worktree add`/`remove`. Because hooks run inside the core git functions, every platform gets them through the shared server. Failure warns but never blocks; output is captured and surfaced in the UI.
-
-## Authentication
-
-Off by default. `packages/server-core/src/config.ts` is the single typed source of configuration (a future in-app password setup only has to write here). Modes:
-
-- **Embedded (desktop)**: loopback + static per-launch token; safe by construction.
-- **Open (default standalone)**: unauthenticated; the server warns when bound to 0.0.0.0.
-- **Password**: `AUTH_REQUIRED=true` + `VIBETREE_USERNAME`/`VIBETREE_PASSWORD`; the web app shows a login page and uses session tokens.
-- **QR device pairing**: short-lived tokens exchanged for 7-day JWTs.
-
-## Testing
-
-- **Unit (vitest)**: core (git parsing, session manager, buffers, hooks), server-core (config, WebSocket API integration with a mock PTY), desktop (renderer logic, main-process managers), ui.
-- **E2E (Playwright)**: desktop suite drives the real Electron app; web suite runs a real server plus the production PWA build and proves the reload-with-scrollback flow end to end.
-- CI runs lint, typecheck, unit tests, platform builds, and both e2e suites.
-
-## Build
-
-- `packages/core`, `ui`, `auth`: esbuild bundles (`build.js`), tsc for declarations
-- `packages/server-core`, `apps/server`: tsc (CommonJS)
-- `apps/desktop`: Vite renderer + tsc main/preload, packaged by electron-builder
-- `apps/web`: Vite + vite-plugin-pwa (manifest, service worker, offline shell)
+`pnpm build` runs Turborepo builds for all remaining workspace packages.

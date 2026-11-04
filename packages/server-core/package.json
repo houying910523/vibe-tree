@@ -1,7 +1,7 @@
 {
   "name": "@vibetree/server-core",
   "version": "0.2.0",
-  "description": "VibeTree Server Core - embeddable HTTP/WebSocket backend shared by the standalone server and the desktop app",
+  "description": "VibeTree Server Core - embeddable HTTP/WebSocket backend used by the desktop app",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

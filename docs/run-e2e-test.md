@@ -20,7 +20,7 @@ pnpm install
 
 ### 2. Build Workspace Dependencies
 
-The desktop app depends on workspace packages (@vibetree/core and @vibetree/ui) that need to be built first:
+The desktop app depends on workspace packages (`@vibetree/core` and `@vibetree/server-core`) that need to be built first:
 
 ```bash
 pnpm build:deps
@@ -29,7 +29,7 @@ pnpm build:deps
 This command builds:
 
 - `@vibetree/core` - Core functionality shared across applications
-- `@vibetree/ui` - Shared UI components
+- `@vibetree/server-core` - Embedded HTTP/WebSocket backend used by the desktop app
 
 ### 3. Fix Electron Installation (if needed)
 

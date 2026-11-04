@@ -5,7 +5,7 @@
   "homepage": "https://github.com/sahithvibudhi/vibe-tree",
   "main": "dist/main/index.js",
   "scripts": {
-    "predev": "rm -f .dev-port && cd ../../packages/core && pnpm build && cd ../../apps/desktop && pnpm copy:assets",
+    "predev": "rm -f .dev-port && pnpm --filter @vibetree/core build && pnpm --filter @vibetree/server-core build && pnpm copy:assets",
     "dev": "rm -f .dev-port && concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"pnpm dev:renderer\" \"pnpm dev:electron\"",
     "dev:debug": "rm -f .dev-port && DEBUG_LAYOUT=true concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"DEBUG_LAYOUT=true pnpm dev:renderer\" \"pnpm dev:electron:debug\"",
     "dev:main": "tsc -w -p tsconfig.main.json",
@@ -14,7 +14,7 @@
     "dev:renderer": "vite",
     "dev:electron": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron .",
     "dev:electron:debug": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron . --remote-debugging-port=9222",
-    "prebuild": "cd ../../packages/core && pnpm build",
+    "prebuild": "pnpm --filter @vibetree/core build && pnpm --filter @vibetree/server-core build",
     "build": "pnpm build:main && pnpm build:preload && pnpm build:renderer && pnpm build:copy-assets",
     "build:main": "tsc -p tsconfig.main.json",
     "build:preload": "tsc -p tsconfig.preload.json",
@@ -28,9 +28,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:e2e": "pnpm build && playwright test",
-    "test:e2e:ui": "pnpm build && playwright test --ui",
-    "test:e2e:docker": "docker-compose run --rm playwright",
-    "test:e2e:docker:build": "docker build -f Dockerfile.playwright -t vibetree-playwright ../../ && docker run --rm vibetree-playwright"
+    "test:e2e:ui": "pnpm build && playwright test --ui"
   },
   "keywords": [
     "electron",
@@ -85,7 +83,6 @@
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-toast": "^1.1.5",
     "@vibetree/core": "workspace:*",
-    "@vibetree/ui": "workspace:*",
     "@xterm/addon-clipboard": "^0.2.0-beta.101",
     "@xterm/addon-fit": "^0.11.0-beta.118",
     "@xterm/addon-image": "^0.9.0-beta.118",

@@ -11,13 +11,13 @@
 
 Works with Claude Code, OpenAI Codex CLI, Gemini CLI, Aider, opencode, and any other terminal program.
 
-[Website](https://sahithvibudhi.github.io/vibe-tree/) · [Docs](https://sahithvibudhi.github.io/vibe-tree/docs/) · [Demo](https://sahithvibudhi.github.io/vibe-tree/#demo) · [Download](https://github.com/sahithvibudhi/vibe-tree/releases/latest)
+[Download](https://github.com/sahithvibudhi/vibe-tree/releases/latest)
 
 </div>
 
 ---
 
-VibeTree is mission control for parallel AI coding agents. Every task gets its own git worktree: an isolated checkout with its own branch and a persistent terminal. Run one agent per worktree, watch them all at once, review each branch's diff, and throw away failed experiments with one click. Use it as a desktop app, or run the server and drive your agents from any browser, including your phone.
+VibeTree is mission control for parallel AI coding agents. Every task gets its own git worktree: an isolated checkout with its own branch and a persistent terminal. Run one agent per worktree, watch them all at once, review each branch's diff, and throw away failed experiments with one click. This fork is focused on the desktop app, with the CLI package kept for local automation.
 
 ![VibeTree Screenshot](assets/screenshot.png)
 
@@ -46,7 +46,6 @@ Download the Setup exe, AppImage, or deb from the [latest release](https://githu
 ```bash
 pnpm install
 pnpm dev:desktop    # desktop app
-pnpm dev:all        # server + web; scan the QR code with your phone
 ```
 
 ## Features
@@ -60,7 +59,6 @@ pnpm dev:all        # server + web; scan the QR code with your phone
 | Changes view | Review the diff beside the terminal and send a note back as the agent's next prompt |
 | Browser preview | Dev server URLs are detected and opened next to the terminal |
 | Lifecycle hooks | Run your own scripts when worktrees are created or removed |
-| Phone access | Installable web app with QR pairing; check the fleet from anywhere on your network |
 
 ## Worktree hooks
 
@@ -72,22 +70,19 @@ printf '#!/bin/sh\nnpm install\n' > .vibetree/hooks/post-create
 chmod +x .vibetree/hooks/post-create
 ```
 
-`post-create` runs in each new worktree; `pre-remove` runs before deletion and can never block it. See the [hooks docs](https://sahithvibudhi.github.io/vibe-tree/docs/hooks.html) for environment variables and examples.
+`post-create` runs in each new worktree; `pre-remove` runs before deletion and can never block it.
 
 ## Security
 
 - The desktop app embeds its server on 127.0.0.1 with a per-launch token; nothing is exposed to the network.
-- The standalone server binds the network so phones can reach it, and warns at startup when reachable without auth. Enable login with `AUTH_REQUIRED=true`, `VIBETREE_USERNAME`, and `VIBETREE_PASSWORD`. All options are in the [configuration docs](https://sahithvibudhi.github.io/vibe-tree/docs/config.html).
 
 ## Development
 
 ```bash
 pnpm install
 pnpm dev:desktop   # desktop app
-pnpm dev:all       # server + web
 pnpm test:run      # unit tests
 pnpm --filter @vibetree/desktop test:e2e   # desktop e2e (Playwright)
-pnpm --filter @vibetree/web test:e2e       # web e2e (Playwright)
 pnpm typecheck && pnpm lint
 ```
 

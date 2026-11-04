@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Thin command-line client for a VibeTree server. Everything goes through
- * the same REST and WebSocket APIs the web app uses, so anything scripted
+ * the same REST and WebSocket APIs the desktop renderer uses, so anything scripted
  * here behaves exactly like clicking the UI, and sessions started here
  * keep running server-side after the CLI exits.
  */

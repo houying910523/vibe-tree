@@ -1,3 +1,5 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - 'apps/desktop'
+  - 'packages/core'
+  - 'packages/server-core'
+  - 'packages/cli'

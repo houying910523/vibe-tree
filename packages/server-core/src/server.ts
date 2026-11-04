@@ -13,9 +13,9 @@ import type { ServerConfig } from './config';
 
 export interface CreateServerOptions {
   config: ServerConfig;
-  /** node-pty spawn, injected by the host (standalone server or Electron main) */
+  /** node-pty spawn, injected by the host process */
   spawn: PtySpawn;
-  /** Directory with a built web app to serve as the UI (single-process deploys) */
+  /** Optional static UI directory for single-process hosts */
   staticDir?: string;
   hooks?: SessionHooks;
   getShellSettings?: () => ShellSettings;
@@ -58,7 +58,7 @@ export function createVibeTreeServer(options: CreateServerOptions): VibeTreeServ
 
   if (staticDir && fs.existsSync(path.join(staticDir, 'index.html'))) {
     app.use(express.static(staticDir));
-    // SPA fallback: anything that is not an API route serves the web app
+    // SPA fallback: anything that is not an API route serves the static UI
     app.get(/^\/(?!api\/|health).*/, (req, res) => {
       res.sendFile(path.join(staticDir, 'index.html'));
     });
