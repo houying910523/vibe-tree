@@ -142,7 +142,7 @@ apps/desktop/src/
 
 ## 6. Worktree Hooks
 
-项目可以通过 `.vibetree/.git-hook` 配置 worktree 生命周期命令：
+项目可以通过 `.vibetree/git-hook.yml` 配置 worktree 生命周期命令：
 
 ```yml
 worktree:
@@ -152,7 +152,7 @@ worktree:
     pre-hook: pkill -f vite
 ```
 
-实现位于 `packages/core/src/utils/worktree-hooks.ts`。如果 `.git-hook` 没有配置对应阶段，仍会回退兼容旧的：
+实现位于 `packages/core/src/utils/worktree-hooks.ts`。如果 `git-hook.yml` 没有配置对应阶段，仍会回退兼容旧的：
 
 ```text
 .vibetree/hooks/post-create

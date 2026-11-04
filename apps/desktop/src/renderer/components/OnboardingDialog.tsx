@@ -30,7 +30,7 @@ const steps = [
   {
     icon: GitBranch,
     title: 'Create a worktree per task',
-    body: 'Create a worktree for each task or conversation. VibeTree makes a sibling directory with a new branch, and a setup hook in .vibetree/.git-hook can run commands like pnpm install automatically.'
+    body: 'Create a worktree for each task or conversation. VibeTree makes a sibling directory with a new branch, and a setup hook in .vibetree/git-hook.yml can run commands like pnpm install automatically.'
   },
   {
     icon: TerminalSquare,

@@ -8,7 +8,7 @@ export type WorktreeHookName = 'post-create' | 'pre-remove';
 
 const HOOK_TIMEOUT_MS = 120000;
 const MAX_OUTPUT_LENGTH = 65536;
-const HOOK_CONFIG_PATH = path.join('.vibetree', '.git-hook');
+const HOOK_CONFIG_PATH = path.join('.vibetree', 'git-hook.yml');
 const FALLBACK_PATH_SEGMENTS =
   process.platform === 'win32'
     ? [
@@ -233,7 +233,7 @@ function runConfiguredWorktreeHook(
 }
 
 /**
- * Find and run a hook if the project defines one. Prefers .vibetree/.git-hook
+ * Find and run a hook if the project defines one. Prefers .vibetree/git-hook.yml
  * command configuration, then falls back to the legacy executable script.
  * Returns undefined when no hook exists, so callers can tell "no hook" from
  * "hook ran".

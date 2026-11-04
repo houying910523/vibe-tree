@@ -62,7 +62,7 @@ pnpm dev:desktop    # desktop app
 
 ## Worktree hooks
 
-Preferred config: add a `.vibetree/.git-hook` file in your repository.
+Preferred config: add a `.vibetree/git-hook.yml` file in your repository.
 
 ```yml
 worktree:
@@ -78,7 +78,7 @@ worktree:
     pre-hook: pkill -f vite
 ```
 
-Legacy executable scripts in `.vibetree/hooks/post-create` and `.vibetree/hooks/pre-remove` are still supported when `.vibetree/.git-hook` does not define that hook. `pre-remove` runs before deletion and can never block it.
+Legacy executable scripts in `.vibetree/hooks/post-create` and `.vibetree/hooks/pre-remove` are still supported when `.vibetree/git-hook.yml` does not define that hook. `pre-remove` runs before deletion and can never block it.
 
 ## Security
 

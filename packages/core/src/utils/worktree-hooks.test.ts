@@ -30,7 +30,7 @@ describe.skipIf(!isPosix)('worktree hooks', () => {
   }
 
   function writeHookConfig(contents: string): string {
-    const configPath = path.join(projectPath, '.vibetree', '.git-hook');
+    const configPath = path.join(projectPath, '.vibetree', 'git-hook.yml');
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(configPath, contents);
     return configPath;
@@ -75,7 +75,7 @@ describe.skipIf(!isPosix)('worktree hooks', () => {
     expect(result!.output).not.toContain('legacy-script');
   });
 
-  it('falls back to the legacy executable hook when .git-hook is malformed', async () => {
+  it('falls back to the legacy executable hook when git-hook.yml is malformed', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     writeHookConfig('worktree: [\n');
     writeHook('post-create', '#!/bin/sh\necho legacy-script\n');

@@ -146,7 +146,7 @@ export async function addWorktree(
 
   await executeGitCommand(['worktree', 'add', '-b', branchName, worktreePath], projectPath);
 
-  // Per-project setup hook (.vibetree/.git-hook or legacy
+  // Per-project setup hook (.vibetree/git-hook.yml or legacy
   // .vibetree/hooks/post-create): dependency installs, .env copies, etc.
   // A failing hook is reported, not fatal - the worktree already exists
   const hook = await runWorktreeHookIfPresent('post-create', {
@@ -170,7 +170,7 @@ export async function removeWorktree(
   worktreePath: string,
   branchName: string
 ): Promise<WorktreeRemoveResult> {
-  // Per-project cleanup hook (.vibetree/.git-hook or legacy
+  // Per-project cleanup hook (.vibetree/git-hook.yml or legacy
   // .vibetree/hooks/pre-remove): stop dev servers, back up state, etc.
   // Failure warns but never blocks removal - the user asked to delete and a
   // broken script should not hold that hostage
