@@ -35,6 +35,8 @@ vi.mock('@xterm/xterm', () => {
       };
     }
 
+    attachCustomKeyEventHandler() {}
+
     emitData(data: string) {
       // Copy: handlers may unsubscribe while iterating
       [...this.dataHandlers].forEach((handler) => handler(data));
@@ -160,10 +162,7 @@ describe('ClaudeTerminal input listener lifecycle', () => {
     });
 
     await waitFor(() => {
-      const live = FakeTerminal.instances.reduce(
-        (sum, term) => sum + term.liveDataHandlerCount,
-        0
-      );
+      const live = FakeTerminal.instances.reduce((sum, term) => sum + term.liveDataHandlerCount, 0);
       expect(live).toBeGreaterThan(0);
     });
 

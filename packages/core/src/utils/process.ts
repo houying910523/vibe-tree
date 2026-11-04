@@ -29,7 +29,7 @@ export async function getForegroundProcessForPid(shellPid: number): Promise<Fore
       return { pid: null, command: null };
     }
 
-    const { stdout: commandOutput } = await execAsync(`ps -o comm= -p ${childPid}`, {
+    const { stdout: commandOutput } = await execAsync(`ps -o command= -p ${childPid}`, {
       encoding: 'utf-8'
     });
 

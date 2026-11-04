@@ -20,6 +20,9 @@ import type { TerminalSettings } from '../types/terminal-settings';
 import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
 import { backend } from '../services/backend';
 
+const SOFT_ENTER_SEQUENCE = '\u001b[13;2u';
+const SOFT_ENTER_COMMAND_PATTERN = /(^|[\\/\s])(codex|pi)(?=$|[\\/\s])|pi-coding-agent/i;
+
 const DEFAULT_TERMINAL_FONT_FAMILY =
   '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
 
@@ -117,6 +120,9 @@ export function ClaudeTerminal({
   const [searchQuery, setSearchQuery] = useState('');
   const [terminalSettings, setTerminalSettings] = useState<TerminalSettings | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const softEnterEnabledRef = useRef(false);
+  const softEnterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const softEnterRefreshInFlightRef = useRef<Promise<void> | null>(null);
   // Which pane owns the keyboard: with several terminals in a grid this is
   // otherwise only visible by cursor blink
   const [isFocused, setIsFocused] = useState(false);
@@ -211,6 +217,65 @@ export function ClaudeTerminal({
       }
     },
     [handleSearch]
+  );
+
+  const isSoftEnterCommand = useCallback((command: string | null | undefined) => {
+    if (!command) return false;
+    return SOFT_ENTER_COMMAND_PATTERN.test(command.toLowerCase());
+  }, []);
+
+  const refreshSoftEnterSupport = useCallback(
+    async (force = false) => {
+      const processId = processIdRef.current;
+      if (!processId) {
+        softEnterEnabledRef.current = false;
+        return;
+      }
+
+      if (!force && softEnterRefreshInFlightRef.current) {
+        return softEnterRefreshInFlightRef.current;
+      }
+
+      const refreshPromise = (async () => {
+        try {
+          const result = await window.electronAPI.shell.getForegroundProcess(processId);
+          if (processIdRef.current !== processId) {
+            return;
+          }
+          softEnterEnabledRef.current = isSoftEnterCommand(result?.command);
+        } catch {
+          if (processIdRef.current === processId) {
+            softEnterEnabledRef.current = false;
+          }
+        }
+      })();
+
+      softEnterRefreshInFlightRef.current = refreshPromise;
+      await refreshPromise;
+      if (softEnterRefreshInFlightRef.current === refreshPromise) {
+        softEnterRefreshInFlightRef.current = null;
+      }
+    },
+    [isSoftEnterCommand]
+  );
+
+  const scheduleSoftEnterRefresh = useCallback(
+    (force = false) => {
+      if (softEnterRefreshTimerRef.current) {
+        clearTimeout(softEnterRefreshTimerRef.current);
+      }
+
+      if (force) {
+        void refreshSoftEnterSupport(true);
+        return;
+      }
+
+      softEnterRefreshTimerRef.current = setTimeout(() => {
+        softEnterRefreshTimerRef.current = null;
+        void refreshSoftEnterSupport();
+      }, 150);
+    },
+    [refreshSoftEnterSupport]
   );
 
   // Scheduler functionality
@@ -515,6 +580,25 @@ export function ClaudeTerminal({
       macOptionIsMeta: true
     });
 
+    term.attachCustomKeyEventHandler((event) => {
+      if (
+        event.type === 'keydown' &&
+        event.key === 'Enter' &&
+        event.shiftKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        processIdRef.current &&
+        softEnterEnabledRef.current
+      ) {
+        event.preventDefault();
+        backend.shell.write(processIdRef.current, SOFT_ENTER_SEQUENCE);
+        return false;
+      }
+
+      return true;
+    });
+
     // Add addons
     const fitAddon = new FitAddon();
     fitAddonRef.current = fitAddon;
@@ -662,6 +746,12 @@ export function ClaudeTerminal({
       console.log(`[ClaudeTerminal] Cleanup for: ${worktreePath}`);
       clearTimeout(resizeDebounceTimer);
       resizeObserver.disconnect();
+      if (softEnterRefreshTimerRef.current) {
+        clearTimeout(softEnterRefreshTimerRef.current);
+        softEnterRefreshTimerRef.current = null;
+      }
+      softEnterEnabledRef.current = false;
+      softEnterRefreshInFlightRef.current = null;
       // Restore original window.open
       window.open = originalWindowOpen;
       // Clean up listeners
@@ -698,6 +788,12 @@ export function ClaudeTerminal({
   useEffect(() => {
     if (!terminal || !worktreePath) return;
 
+    softEnterEnabledRef.current = false;
+    if (softEnterRefreshTimerRef.current) {
+      clearTimeout(softEnterRefreshTimerRef.current);
+      softEnterRefreshTimerRef.current = null;
+    }
+
     const epoch = ++startEpochRef.current;
 
     // Clean up old listeners first
@@ -710,13 +806,7 @@ export function ClaudeTerminal({
         const cols = terminal.cols;
         const rows = terminal.rows;
 
-        const result = await backend.shell.start(
-          worktreePath,
-          cols,
-          rows,
-          false,
-          terminalId
-        );
+        const result = await backend.shell.start(worktreePath, cols, rows, false, terminalId);
 
         // A newer run started while we awaited: registering listeners now
         // would leak them past this run's cleanup and duplicate input
@@ -731,6 +821,7 @@ export function ClaudeTerminal({
 
         processIdRef.current = result.processId!;
         setCurrentProcessId(result.processId!);
+        scheduleSoftEnterRefresh(true);
         console.log(
           `Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`
         );
@@ -799,6 +890,9 @@ export function ClaudeTerminal({
         const disposable = terminal.onData((data) => {
           if (processIdRef.current) {
             backend.shell.write(processIdRef.current, data);
+            if (data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n')) {
+              scheduleSoftEnterRefresh();
+            }
             // Only mark user input when user presses ENTER (sends prompt to Claude)
             // This prevents resetting notification flag on every keystroke
             // which would cause duplicate notifications while typing
@@ -809,20 +903,19 @@ export function ClaudeTerminal({
         });
 
         // Set up output listener
-        const removeOutputListener = backend.shell.onOutput(
-          result.processId!,
-          (data) => {
-            terminal.write(data);
-            // Note: Notification logic is now handled in main process
-            // Main process receives output directly and detects Claude state
-          }
-        );
+        const removeOutputListener = backend.shell.onOutput(result.processId!, (data) => {
+          terminal.write(data);
+          scheduleSoftEnterRefresh();
+          // Note: Notification logic is now handled in main process
+          // Main process receives output directly and detects Claude state
+        });
 
         // Set up exit listener
         const removeExitListener = backend.shell.onExit(result.processId!, (code) => {
           terminal.writeln(`\r\n[Shell exited with code ${code}]`);
           const exitedProcessId = processIdRef.current;
           processIdRef.current = '';
+          softEnterEnabledRef.current = false;
 
           // Clean up scheduler state when PTY exits
           if (exitedProcessId) {
@@ -871,7 +964,7 @@ export function ClaudeTerminal({
       removeListenersRef.current.forEach((remove) => remove());
       removeListenersRef.current = [];
     };
-  }, [terminal, worktreePath, terminalId]);
+  }, [terminal, worktreePath, terminalId, scheduleSoftEnterRefresh]);
 
   // Detect available IDEs
   useEffect(() => {
@@ -1063,7 +1156,10 @@ export function ClaudeTerminal({
       className={`claude-terminal-root flex-1 flex flex-col h-full overflow-hidden ${
         isFocused ? 'ring-1 ring-inset ring-foreground/25' : ''
       }`}
-      onFocusCapture={() => setIsFocused(true)}
+      onFocusCapture={() => {
+        setIsFocused(true);
+        scheduleSoftEnterRefresh(true);
+      }}
       onBlurCapture={(e) => {
         // Focus moving between elements inside this pane is not a blur
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
