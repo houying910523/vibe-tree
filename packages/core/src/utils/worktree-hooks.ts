@@ -69,10 +69,19 @@ function readConfiguredWorktreeHookCommand(
         ? parsed?.worktree?.add?.['post-hook']
         : parsed?.worktree?.remove?.['pre-hook'];
 
-    if (typeof configuredCommand !== 'string') return null;
+    if (typeof configuredCommand !== 'string') {
+      console.log(`[worktree-hook] No configured ${name} hook found in ${configPath}`);
+      return null;
+    }
 
     const trimmedCommand = configuredCommand.trim();
-    return trimmedCommand.length > 0 ? trimmedCommand : null;
+    if (trimmedCommand.length === 0) {
+      console.log(`[worktree-hook] Ignoring empty configured ${name} hook in ${configPath}`);
+      return null;
+    }
+
+    console.log(`[worktree-hook] Loaded configured ${name} hook from ${configPath}`);
+    return trimmedCommand;
   } catch (error) {
     console.warn(
       `Ignoring malformed ${HOOK_CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`
@@ -90,6 +99,11 @@ function buildHookEnv(name: WorktreeHookName, context: WorktreeHookContext): Nod
     VIBETREE_WORKTREE_PATH: context.worktreePath,
     VIBETREE_BRANCH: context.branch
   };
+}
+
+function summarizeHookOutput(output: string): string {
+  if (!output) return '(no output)';
+  return output.length > 2000 ? `${output.slice(0, 2000)}…` : output;
 }
 
 function runHookProcess(
@@ -110,6 +124,9 @@ function runHookProcess(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      console.log(
+        `[worktree-hook] Finished ${name} for ${context.worktreePath} ok=${result.ok} exitCode=${result.exitCode} timedOut=${result.timedOut} output=${JSON.stringify(summarizeHookOutput(result.output))}`
+      );
       resolve(result);
     };
 
@@ -118,6 +135,10 @@ function runHookProcess(
       const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       output += text.slice(0, MAX_OUTPUT_LENGTH - output.length);
     };
+
+    console.log(
+      `[worktree-hook] Starting ${name} for ${context.worktreePath} command=${JSON.stringify(command)} args=${JSON.stringify(args)} cwd=${JSON.stringify(context.worktreePath)} shell=${options.shell === true} branch=${JSON.stringify(context.branch)}`
+    );
 
     const child = spawn(command, args, {
       cwd: context.worktreePath,
@@ -128,6 +149,7 @@ function runHookProcess(
 
     const timer = setTimeout(() => {
       timedOut = true;
+      console.warn(`[worktree-hook] ${name} timed out after ${timeoutMs}ms for ${context.worktreePath}`);
       if (process.platform !== 'win32' && child.pid) {
         try {
           process.kill(-child.pid, 'SIGKILL');
@@ -143,6 +165,7 @@ function runHookProcess(
     child.stderr?.on('data', append);
 
     child.on('error', (error) => {
+      console.warn(`[worktree-hook] Failed to start ${name} for ${context.worktreePath}: ${error.message}`);
       finish({
         name,
         ok: false,
@@ -245,13 +268,16 @@ export async function runWorktreeHookIfPresent(
 ): Promise<HookResult | undefined> {
   const configuredCommand = readConfiguredWorktreeHookCommand(context.projectPath, name);
   if (configuredCommand) {
-    console.log(`Running configured ${name} hook for ${context.worktreePath}`);
+    console.log(`[worktree-hook] Running configured ${name} hook for ${context.worktreePath}`);
     return runConfiguredWorktreeHook(configuredCommand, name, context, timeoutMs);
   }
 
   const hookPath = findWorktreeHook(context.projectPath, name);
-  if (!hookPath) return undefined;
+  if (!hookPath) {
+    console.log(`[worktree-hook] No ${name} hook configured for ${context.worktreePath}`);
+    return undefined;
+  }
 
-  console.log(`Running ${name} hook for ${context.worktreePath}`);
+  console.log(`[worktree-hook] Running legacy ${name} hook at ${hookPath} for ${context.worktreePath}`);
   return runWorktreeHook(hookPath, name, context, timeoutMs);
 }
