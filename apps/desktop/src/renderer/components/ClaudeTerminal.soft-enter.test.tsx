@@ -26,13 +26,17 @@ vi.mock('@xterm/xterm', () => {
       this.customKeyEventHandler = handler;
     }
 
-    dispatchKeyDown(
-      overrides: Partial<Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey'>>
+    dispatchKeyEvent(
+      type: 'keydown' | 'keypress',
+      overrides: Partial<
+        Pick<KeyboardEvent, 'key' | 'keyCode' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey'>
+      >
     ) {
       const preventDefault = vi.fn();
       const event = {
-        type: 'keydown',
+        type,
         key: 'Enter',
+        keyCode: 13,
         shiftKey: false,
         ctrlKey: false,
         altKey: false,
@@ -127,7 +131,10 @@ import { ClaudeTerminal } from './ClaudeTerminal';
 
 interface FakeTerminalStatics {
   instances: Array<{
-    dispatchKeyDown: (overrides: Partial<KeyboardEvent>) => {
+    dispatchKeyEvent: (
+      type: 'keydown' | 'keypress',
+      overrides: Partial<KeyboardEvent>
+    ) => {
       allowed: boolean;
       preventDefault: ReturnType<typeof vi.fn>;
     };
@@ -184,10 +191,21 @@ describe('ClaudeTerminal soft enter', () => {
 
     await waitFor(() => expect(shellGetForegroundProcess).toHaveBeenCalledTimes(2));
 
-    const result = FakeTerminal.instances[0].dispatchKeyDown({ key: 'Enter', shiftKey: true });
+    const keyDownResult = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: 'Enter',
+      shiftKey: true
+    });
+    const keyPressResult = FakeTerminal.instances[0].dispatchKeyEvent('keypress', {
+      key: 'Enter',
+      keyCode: 13,
+      shiftKey: true
+    });
 
-    expect(result.allowed).toBe(false);
-    expect(result.preventDefault).toHaveBeenCalledTimes(1);
+    expect(keyDownResult.allowed).toBe(false);
+    expect(keyDownResult.preventDefault).toHaveBeenCalledTimes(1);
+    expect(keyPressResult.allowed).toBe(false);
+    expect(keyPressResult.preventDefault).toHaveBeenCalledTimes(1);
+    expect(shellWrite).toHaveBeenCalledTimes(1);
     expect(shellWrite).toHaveBeenCalledWith('pid-1', SOFT_ENTER_SEQUENCE);
   });
 
@@ -197,7 +215,10 @@ describe('ClaudeTerminal soft enter', () => {
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(shellGetForegroundProcess).toHaveBeenCalledTimes(1));
 
-    const result = FakeTerminal.instances[0].dispatchKeyDown({ key: 'Enter', shiftKey: true });
+    const result = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: 'Enter',
+      shiftKey: true
+    });
 
     expect(result.allowed).toBe(true);
     expect(result.preventDefault).not.toHaveBeenCalled();

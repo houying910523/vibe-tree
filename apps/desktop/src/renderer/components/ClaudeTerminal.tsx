@@ -581,18 +581,24 @@ export function ClaudeTerminal({
     });
 
     term.attachCustomKeyEventHandler((event) => {
-      if (
-        event.type === 'keydown' &&
-        event.key === 'Enter' &&
+      const isShiftEnter =
+        (event.key === 'Enter' || event.keyCode === 13) &&
         event.shiftKey &&
         !event.ctrlKey &&
         !event.altKey &&
-        !event.metaKey &&
+        !event.metaKey;
+
+      if (
+        (event.type === 'keydown' || event.type === 'keypress') &&
+        isShiftEnter &&
         processIdRef.current &&
         softEnterEnabledRef.current
       ) {
+        // xterm can still send Enter from keypress after keydown is canceled.
         event.preventDefault();
-        backend.shell.write(processIdRef.current, SOFT_ENTER_SEQUENCE);
+        if (event.type === 'keydown') {
+          backend.shell.write(processIdRef.current, SOFT_ENTER_SEQUENCE);
+        }
         return false;
       }
 
