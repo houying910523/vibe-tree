@@ -23,6 +23,18 @@ describe('TitleBar', () => {
     expect(window.electronAPI.window.toggleMaximized).not.toHaveBeenCalled();
   });
 
+  it('keeps non-interactive child areas draggable', () => {
+    render(
+      <TitleBar theme="dark" onThemeToggle={vi.fn()}>
+        <div data-testid="titlebar-child">Projects</div>
+      </TitleBar>
+    );
+
+    expect(screen.getByTestId('titlebar-child').parentElement).not.toHaveStyle({
+      WebkitAppRegion: 'no-drag'
+    });
+  });
+
   it('does not maximize when double clicking child controls', () => {
     render(
       <TitleBar theme="dark" onThemeToggle={vi.fn()}>

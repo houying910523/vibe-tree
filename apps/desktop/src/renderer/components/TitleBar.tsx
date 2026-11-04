@@ -20,7 +20,8 @@ const titleBarControlSelector =
  * region and carries the project tabs and window-level controls, instead
  * of a banner header stacked above separate tab rows. On macOS the left
  * padding clears the inset traffic lights; on Windows/Linux the right
- * padding clears the titleBarOverlay window controls.
+ * padding clears the titleBarOverlay window controls. Interactive children
+ * opt out of dragging via the shared .titlebar-drag-region CSS rules.
  */
 export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: TitleBarProps) {
   const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -34,7 +35,7 @@ export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: Ti
 
   return (
     <div
-      className={`h-10 border-b border-border/60 flex items-center gap-1.5 flex-shrink-0 select-none ${
+      className={`titlebar-drag-region h-10 border-b border-border/60 flex items-center gap-1.5 flex-shrink-0 select-none ${
         IS_MAC ? 'pl-[78px] pr-2' : 'pl-2 pr-[140px]'
       }`}
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
@@ -60,11 +61,10 @@ export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: Ti
         </Button>
       )}
 
-      {/* Project tabs (and the add button) live inside the drag region;
-          each interactive element opts out individually */}
-      <div className="flex-1 min-w-0 flex items-center h-full" style={noDrag}>
-        {children}
-      </div>
+      {/* Project tabs (and the add button) stay inside the drag region so
+          empty space between them can move the window; interactive descendants
+          opt out automatically via .titlebar-drag-region */}
+      <div className="flex-1 min-w-0 flex items-center h-full">{children}</div>
 
       <Button
         size="icon"
