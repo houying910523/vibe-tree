@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isProtectedBranch } from '../utils/worktree';
+import { canDeleteWorktree, sortWorktrees } from './worktree-panel/utils';
 
 describe('WorktreePanel - Branch Protection Logic', () => {
   describe('isProtectedBranch', () => {
@@ -60,12 +61,8 @@ describe('WorktreePanel - Branch Protection Logic', () => {
         branch: 'refs/heads/feature-branch',
         head: 'abc123'
       };
-      const worktreeCount = 2;
 
-      const shouldShowDeleteButton =
-        worktreeCount > 1 && worktree.branch && !isProtectedBranch(worktree.branch);
-
-      expect(shouldShowDeleteButton).toBe(true);
+      expect(canDeleteWorktree(worktree, 2)).toBe(true);
     });
 
     it('should hide delete button for main branch even with multiple worktrees', () => {
@@ -74,12 +71,8 @@ describe('WorktreePanel - Branch Protection Logic', () => {
         branch: 'refs/heads/main',
         head: 'abc123'
       };
-      const worktreeCount = 2;
 
-      const shouldShowDeleteButton =
-        worktreeCount > 1 && worktree.branch && !isProtectedBranch(worktree.branch);
-
-      expect(shouldShowDeleteButton).toBe(false);
+      expect(canDeleteWorktree(worktree, 2)).toBe(false);
     });
 
     it('should hide delete button when only one worktree exists', () => {
@@ -88,35 +81,38 @@ describe('WorktreePanel - Branch Protection Logic', () => {
         branch: 'refs/heads/feature-branch',
         head: 'abc123'
       };
-      const worktreeCount = 1;
 
-      const shouldShowDeleteButton =
-        worktreeCount > 1 && worktree.branch && !isProtectedBranch(worktree.branch);
-
-      expect(shouldShowDeleteButton).toBe(false);
+      expect(canDeleteWorktree(worktree, 1)).toBe(false);
     });
 
     it('should show delete button for branches with "main" substring (bug fix verification)', () => {
-      // This is the specific bug we're fixing
       const problematicBranches = [
         'refs/heads/fix-broken-main3',
         'refs/heads/maintain-feature',
         'refs/heads/domain-logic'
       ];
-      const worktreeCount = 2;
 
       problematicBranches.forEach((branch) => {
-        const worktree = {
-          path: '/path/to/worktree',
-          branch,
-          head: 'abc123'
-        };
-
-        const shouldShowDeleteButton =
-          worktreeCount > 1 && worktree.branch && !isProtectedBranch(worktree.branch);
-
-        expect(shouldShowDeleteButton).toBe(true);
+        expect(canDeleteWorktree({ branch }, 2)).toBe(true);
       });
+    });
+  });
+
+  describe('Worktree sorting', () => {
+    it('keeps main/master first and sorts the rest by display branch name', () => {
+      const sorted = sortWorktrees([
+        { path: '/feature-z', branch: 'refs/heads/feature-z', head: 'z' },
+        { path: '/detached', branch: '', head: 'abc123456789' },
+        { path: '/main', branch: 'refs/heads/main', head: 'm' },
+        { path: '/feature-a', branch: 'refs/heads/feature-a', head: 'a' }
+      ]);
+
+      expect(sorted.map((worktree) => worktree.path)).toEqual([
+        '/main',
+        '/detached',
+        '/feature-a',
+        '/feature-z'
+      ]);
     });
   });
 });
