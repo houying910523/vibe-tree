@@ -113,8 +113,8 @@ vi.mock('../services/backend', () => ({
   }
 }));
 
-import { Terminal } from '@xterm/xterm';
-import { ClaudeTerminal } from './ClaudeTerminal';
+import { Terminal as XTermTerminal } from '@xterm/xterm';
+import { Terminal } from './Terminal';
 
 interface FakeTerminalStatics {
   instances: Array<{
@@ -123,9 +123,9 @@ interface FakeTerminalStatics {
   }>;
 }
 
-const FakeTerminal = Terminal as unknown as FakeTerminalStatics;
+const FakeTerminal = XTermTerminal as unknown as FakeTerminalStatics;
 
-describe('ClaudeTerminal input listener lifecycle', () => {
+describe('Terminal input listener lifecycle', () => {
   beforeEach(() => {
     FakeTerminal.instances.length = 0;
     startResolvers.length = 0;
@@ -144,13 +144,13 @@ describe('ClaudeTerminal input listener lifecycle', () => {
 
   it('does not leak input listeners when the worktree changes mid-start', async () => {
     const { rerender } = render(
-      <ClaudeTerminal worktreePath="/tmp/repo-a" terminalId="term-1" isVisible />
+      <Terminal worktreePath="/tmp/repo-a" terminalId="term-1" isVisible />
     );
 
     // First start is in flight (its promise is still pending) when the
     // worktree switches, which used to let the stale run register listeners
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
-    rerender(<ClaudeTerminal worktreePath="/tmp/repo-b" terminalId="term-1" isVisible />);
+    rerender(<Terminal worktreePath="/tmp/repo-b" terminalId="term-1" isVisible />);
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(2));
 
     // Resolve the stale run first, then the current one
@@ -179,7 +179,7 @@ describe('ClaudeTerminal input listener lifecycle', () => {
 
   it('runs the initial command when the shell is new', async () => {
     render(
-      <ClaudeTerminal
+      <Terminal
         worktreePath="/tmp/repo-a"
         terminalId="term-1"
         initialCommand="codex"
@@ -206,7 +206,7 @@ describe('ClaudeTerminal input listener lifecycle', () => {
     const onProcessIdChange = vi.fn();
 
     render(
-      <ClaudeTerminal
+      <Terminal
         worktreePath="/tmp/repo-a"
         terminalId="term-1"
         initialCommand="codex"

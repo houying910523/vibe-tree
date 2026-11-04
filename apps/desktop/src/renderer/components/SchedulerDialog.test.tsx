@@ -477,7 +477,7 @@ describe('SchedulerDialog', () => {
       fireEvent.click(startButton);
 
       // Verify the command is passed as-is to onStart
-      // The parent component (ClaudeTerminal) is responsible for appending '\r' (ENTER key)
+      // The parent component (Terminal) is responsible for appending '\r' (ENTER key)
       expect(mockOnStart).toHaveBeenCalledWith({
         command: 'echo "test"',
         delayMs: 1000,
@@ -508,7 +508,7 @@ describe('SchedulerDialog', () => {
       // Unmount the component
       unmount();
 
-      // onStop should not be called on unmount - the parent (ClaudeTerminal) handles cleanup
+      // onStop should not be called on unmount - the parent (Terminal) handles cleanup
       // This test just verifies the component can be safely unmounted
       expect(mockOnStop).not.toHaveBeenCalled();
     });

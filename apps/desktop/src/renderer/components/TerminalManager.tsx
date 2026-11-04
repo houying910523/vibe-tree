@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createHtmlPortalNode, InPortal, OutPortal, HtmlPortalNode } from 'react-reverse-portal';
-import { ClaudeTerminal } from './ClaudeTerminal';
+import { Terminal } from './Terminal';
 import { backend } from '../services/backend';
 
 interface TerminalManagerProps {
@@ -212,7 +212,7 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
       {/* Render all terminals into their portals (this happens once per terminal) */}
       {allTerminals.map((terminal) => (
         <InPortal key={terminal.id} node={terminal.portalNode}>
-          <ClaudeTerminal
+          <Terminal
             worktreePath={terminal.worktreePath}
             projectId={projectId}
             theme={theme}

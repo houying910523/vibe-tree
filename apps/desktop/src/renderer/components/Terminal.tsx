@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
+import { Terminal as XTermTerminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
@@ -26,7 +26,7 @@ const SOFT_ENTER_COMMAND_PATTERN = /(^|[\\/\s])(codex|pi)(?=$|[\\/\s])|pi-coding
 const DEFAULT_TERMINAL_FONT_FAMILY =
   '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
 
-interface ClaudeTerminalProps {
+interface TerminalProps {
   worktreePath: string;
   projectId?: string;
   theme?: 'light' | 'dark';
@@ -92,7 +92,7 @@ const broadcastSchedulerStateChange = (
   );
 };
 
-export function ClaudeTerminal({
+export function Terminal({
   worktreePath,
   theme = 'dark',
   isVisible = true,
@@ -103,9 +103,9 @@ export function ClaudeTerminal({
   canClose = false,
   onProcessIdChange,
   initialCommand
-}: ClaudeTerminalProps) {
+}: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const [terminal, setTerminal] = useState<Terminal | null>(null);
+  const [terminal, setTerminal] = useState<XTermTerminal | null>(null);
   const processIdRef = useRef<string>('');
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
@@ -567,7 +567,7 @@ export function ClaudeTerminal({
       }
     };
 
-    const term = new Terminal({
+    const term = new XTermTerminal({
       theme: getTerminalTheme(theme),
       fontFamily: settings.fontFamily,
       fontSize: settings.fontSize,
@@ -682,7 +682,7 @@ export function ClaudeTerminal({
 
     // Handle bell character - play sound when bell is triggered
     const bellDisposable = term.onBell(() => {
-      console.log('Bell triggered in ClaudeTerminal!');
+      console.log('Bell triggered in Terminal!');
       // Create an audio element and play the bell sound
       const audio = new Audio(
         'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ=='
@@ -753,7 +753,7 @@ export function ClaudeTerminal({
     }
 
     return () => {
-      console.log(`[ClaudeTerminal] Cleanup for: ${worktreePath}`);
+      console.log(`[Terminal] Cleanup for: ${worktreePath}`);
       clearTimeout(resizeDebounceTimer);
       resizeObserver.disconnect();
       if (softEnterRefreshTimerRef.current) {
@@ -1027,7 +1027,7 @@ export function ClaudeTerminal({
   useEffect(() => {
     if (!terminal || !isVisible) return;
 
-    console.log(`[ClaudeTerminal] Terminal visibility changed for ${worktreePath}: ${isVisible}`);
+    console.log(`[Terminal] Terminal visibility changed for ${worktreePath}: ${isVisible}`);
 
     // Immediate resize attempt
     if (fitAddonRef.current && terminalRef.current) {
