@@ -1112,7 +1112,7 @@ export function ClaudeTerminal({
     e.stopPropagation();
 
     // Check if we're actually leaving the terminal container
-    const rect = terminalRef.current?.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     if (
       rect &&
       (e.clientX < rect.left ||
@@ -1343,11 +1343,9 @@ export function ClaudeTerminal({
         </div>
       )}
 
-      {/* Terminal container. The padding matches the web terminal and the
-          background matches the xterm canvas so the gutter blends in */}
+      {/* Terminal frame keeps the gutter; the inner target is the measured xterm area. */}
       <div
-        ref={terminalRef}
-        className="terminal-xterm-container flex-1 h-full"
+        className="flex-1 h-full"
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -1367,7 +1365,9 @@ export function ClaudeTerminal({
               }
             : {})
         }}
-      />
+      >
+        <div ref={terminalRef} className="terminal-xterm-container h-full w-full" />
+      </div>
 
       {/* Scheduler Dialog */}
       <SchedulerDialog
