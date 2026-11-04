@@ -17,13 +17,13 @@ import {
 } from './ui/dropdown-menu';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { Check, ChevronDown, Clock, GitBranch, Plus, RefreshCw } from 'lucide-react';
+import {Check, ChevronDown, Clock, GitBranch, Plus, RefreshCw, Trash2} from 'lucide-react';
 import { useToast } from './ui/use-toast';
-import { isProtectedBranch } from '../utils/worktree';
+import { isProtectedBranch } from '@/utils/worktree';
 import { DeletionReportingDialog } from './DeletionReportingDialog';
 import { activeSchedulersByWorktree, SCHEDULER_STATE_CHANGED_EVENT } from './ClaudeTerminal';
 import { cleanupWorktreeTerminals } from './TerminalGrid';
-import { backend } from '../services/backend';
+import { backend } from '@/services/backend';
 
 interface Worktree {
   path: string;
@@ -260,7 +260,7 @@ export function WorktreePanel({
     }
   };
 
-  const openDeleteWorktreeDialog = (worktree: Worktree) => {
+  const handleDeleteWorktree = (worktree: Worktree) => {
     if (worktrees.length <= 1) {
       toast({
         title: 'Error',
@@ -518,14 +518,14 @@ export function WorktreePanel({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem disabled>合并到根worktree</DropdownMenuItem>
-                        <DropdownMenuItem disabled>合并并删除</DropdownMenuItem>
+                        <DropdownMenuItem disabled>Merge</DropdownMenuItem>
+                        <DropdownMenuItem disabled>Merge and Delete</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onSelect={() => openDeleteWorktreeDialog(worktree)}
+                          onSelect={() => handleDeleteWorktree(worktree)}
                         >
-                          删除
+                          <Trash2 className="h-3.5 w-3.5" /> 删除
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

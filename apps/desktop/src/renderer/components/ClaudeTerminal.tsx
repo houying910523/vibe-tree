@@ -16,9 +16,9 @@ import { Code2, Columns2, Rows2, X, Search, Clock, Bell, BellOff } from 'lucide-
 import { useToast } from './ui/use-toast';
 import { escapeShellPath } from '@vibetree/core';
 import '@xterm/xterm/css/xterm.css';
-import type { TerminalSettings } from '../types/terminal-settings';
+import type { TerminalSettings } from '@/types/terminal-settings';
 import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
-import { backend } from '../services/backend';
+import { backend } from '@/services/backend';
 
 const SOFT_ENTER_SEQUENCE = '\u001b[13;2u';
 const SOFT_ENTER_COMMAND_PATTERN = /(^|[\\/\s])(codex|pi)(?=$|[\\/\s])|pi-coding-agent/i;
