@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createHtmlPortalNode, InPortal, OutPortal, HtmlPortalNode } from 'react-reverse-portal';
 import { ClaudeTerminal } from './ClaudeTerminal';
-import { TerminalController } from '../services/TerminalController';
-import { backend } from '../services/backend';
+import { TerminalController } from '@/services/TerminalController';
+import { backend } from '@/services/backend';
 
 interface TerminalManagerProps {
   worktreePath: string;
