@@ -15,7 +15,7 @@ const mockWrite = vi.fn((_processId: string, data: string) => {
   return Promise.resolve();
 });
 
-// Simulate the sendScheduledCommand function from ClaudeTerminal.tsx
+// Simulate the sendScheduledCommand function from Terminal.tsx
 function sendScheduledCommand(command: string, processId: string, terminal: any) {
   if (!processId || !terminal) return;
 

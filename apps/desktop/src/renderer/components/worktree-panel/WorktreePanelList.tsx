@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Clock, GitBranch, Trash2 } from 'lucide-react';
-import { activeSchedulersByWorktree, SCHEDULER_STATE_CHANGED_EVENT } from '../ClaudeTerminal';
+import { activeSchedulersByWorktree, SCHEDULER_STATE_CHANGED_EVENT } from '../Terminal';
 import { backend } from '@/services/backend';
 import {
   DropdownMenu,

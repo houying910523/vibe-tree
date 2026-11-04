@@ -41,18 +41,18 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
         <div className="border-b border-border/60 flex items-center h-10 px-2 flex-shrink-0">
           <TabsList className="h-7 bg-muted p-0.5 rounded-md gap-0.5">
             <TabsTrigger
-              value="terminal"
-              className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
-            >
-              <Terminal className="h-3.5 w-3.5" />
-              Terminal
-            </TabsTrigger>
-            <TabsTrigger
               value="agent"
               className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
             >
               <Bot className="h-3.5 w-3.5" />
               Agent
+            </TabsTrigger>
+            <TabsTrigger
+              value="terminal"
+              className="h-6 rounded px-2.5 text-xs font-medium text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm flex items-center gap-1.5"
+            >
+              <Terminal className="h-3.5 w-3.5" />
+              Terminal
             </TabsTrigger>
             <TabsTrigger
               value="git-diff"

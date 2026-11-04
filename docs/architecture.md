@@ -139,7 +139,7 @@ apps/desktop/src/
 - `preload/index.ts`
 - `renderer/App.tsx`
 - `renderer/services/backend.ts`
-- `renderer/components/ClaudeTerminal.tsx`
+- `renderer/components/Terminal.tsx`
 - `renderer/components/ProjectWorkspace.tsx`
 
 ## 6. Worktree Hooks

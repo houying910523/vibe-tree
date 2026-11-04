@@ -126,8 +126,8 @@ vi.mock('../services/backend', () => ({
   }
 }));
 
-import { Terminal } from '@xterm/xterm';
-import { ClaudeTerminal } from './ClaudeTerminal';
+import { Terminal as XTermTerminal } from '@xterm/xterm';
+import { Terminal } from './Terminal';
 
 interface FakeTerminalStatics {
   instances: Array<{
@@ -141,9 +141,9 @@ interface FakeTerminalStatics {
   }>;
 }
 
-const FakeTerminal = Terminal as unknown as FakeTerminalStatics;
+const FakeTerminal = XTermTerminal as unknown as FakeTerminalStatics;
 
-describe('ClaudeTerminal soft enter', () => {
+describe('Terminal soft enter', () => {
   beforeEach(() => {
     FakeTerminal.instances.length = 0;
     outputListeners.clear();
@@ -179,7 +179,7 @@ describe('ClaudeTerminal soft enter', () => {
         command: 'node /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js'
       });
 
-    render(<ClaudeTerminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
 
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(shellGetForegroundProcess).toHaveBeenCalledTimes(1));
@@ -210,7 +210,7 @@ describe('ClaudeTerminal soft enter', () => {
   });
 
   it('does not override Shift+Enter for regular shells', async () => {
-    render(<ClaudeTerminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
 
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(shellGetForegroundProcess).toHaveBeenCalledTimes(1));

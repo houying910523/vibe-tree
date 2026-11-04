@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { escapeShellPath } from '@vibetree/core';
 
 // Test the escapeShellPath function
-describe('ClaudeTerminal - escapeShellPath', () => {
+describe('Terminal - escapeShellPath', () => {
   it('should correctly escape shell paths', () => {
     expect(escapeShellPath('/simple/path')).toBe('/simple/path');
     expect(escapeShellPath('/path with spaces/file.txt')).toBe("'/path with spaces/file.txt'");

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createHtmlPortalNode, InPortal, OutPortal, HtmlPortalNode } from 'react-reverse-portal';
-import { ClaudeTerminal } from './ClaudeTerminal';
+import { Terminal } from './Terminal';
 import { TerminalController } from '@/services/TerminalController';
 import { backend } from '@/services/backend';
 
@@ -465,7 +465,7 @@ export function TerminalGrid({
 
         return (
           <InPortal key={terminal.id} node={terminal.portalNode}>
-            <ClaudeTerminal
+            <Terminal
               worktreePath={terminal.worktreePath}
               projectId={projectId}
               theme={theme}
