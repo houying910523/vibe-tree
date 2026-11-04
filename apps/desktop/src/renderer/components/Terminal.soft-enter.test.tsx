@@ -18,7 +18,8 @@ vi.mock('@xterm/xterm', () => {
     private dataHandlers: Array<(data: string) => void> = [];
     private customKeyEventHandler: ((event: KeyboardEvent) => boolean) | null = null;
 
-    constructor() {
+    constructor(options: Record<string, unknown> = {}) {
+      this.options = options;
       FakeTerminal.instances.push(this);
     }
 
@@ -131,6 +132,7 @@ import { Terminal } from './Terminal';
 
 interface FakeTerminalStatics {
   instances: Array<{
+    options: Record<string, unknown>;
     dispatchKeyEvent: (
       type: 'keydown' | 'keypress',
       overrides: Partial<KeyboardEvent>
@@ -169,6 +171,14 @@ describe('Terminal soft enter', () => {
 
   afterEach(() => {
     vi.clearAllTimers();
+  });
+
+  it('allows Option-drag selection when terminal apps enable mouse mode', async () => {
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+
+    expect(FakeTerminal.instances[0].options.macOptionClickForcesSelection).toBe(true);
   });
 
   it('sends a soft-enter sequence once Pi or Codex becomes the foreground app', async () => {

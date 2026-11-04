@@ -580,8 +580,9 @@ export function Terminal({
       windowsMode: false,
       // Allow proposed API for Unicode11 addon
       allowProposedApi: true,
-      // Enable Option key as Meta on macOS
-      macOptionIsMeta: true
+      // Option is Meta for keys, and Option-drag still selects text in mouse-mode apps
+      macOptionIsMeta: true,
+      macOptionClickForcesSelection: true
     });
 
     term.attachCustomKeyEventHandler((event) => {
