@@ -7,6 +7,9 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
  * IDE launching, settings files, and menu events.
  */
 const api = {
+  window: {
+    toggleMaximized: () => ipcRenderer.invoke('window:toggle-maximized')
+  },
   server: {
     getEndpoint: (): Promise<{ url: string; port: number }> =>
       ipcRenderer.invoke('server:get-endpoint')

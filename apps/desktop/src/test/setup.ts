@@ -28,6 +28,9 @@ Object.defineProperty(window, 'matchMedia', {
 Object.defineProperty(window, 'electronAPI', {
   writable: true,
   value: {
+    window: {
+      toggleMaximized: vi.fn(() => Promise.resolve())
+    },
     schedulerHistory: {
       get: vi.fn(() => Promise.resolve([])),
       add: vi.fn(() => Promise.resolve()),

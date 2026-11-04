@@ -1,4 +1,7 @@
 export interface ElectronAPI {
+  window: {
+    toggleMaximized: () => Promise<void>;
+  };
   server: {
     getEndpoint: () => Promise<{ url: string; port: number }>;
   };

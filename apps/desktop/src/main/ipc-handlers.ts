@@ -12,6 +12,19 @@ import * as os from 'os';
 import * as path from 'path';
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
+  // Window handling
+  ipcMain.handle('window:toggle-maximized', () => {
+    if (!mainWindow) {
+      return;
+    }
+
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  });
+
   // Theme handling
   ipcMain.handle('theme:get', () => {
     return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';

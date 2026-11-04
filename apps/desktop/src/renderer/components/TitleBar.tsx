@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, MouseEvent } from 'react';
 import { Button } from './ui/button';
 import { Moon, Sun, PanelLeft } from 'lucide-react';
 
@@ -12,6 +12,8 @@ interface TitleBarProps {
 }
 
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
+const titleBarControlSelector =
+  'button, a, input, select, textarea, [role="button"], [role="tab"], [data-titlebar-control]';
 
 /**
  * Single compact titlebar in the Linear/Slack style: it is the window drag
@@ -21,6 +23,15 @@ const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
  * padding clears the titleBarOverlay window controls.
  */
 export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: TitleBarProps) {
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest(titleBarControlSelector)) {
+      return;
+    }
+
+    window.electronAPI.window.toggleMaximized();
+  };
+
   return (
     <div
       className={`h-10 border-b border-border/60 flex items-center gap-1.5 flex-shrink-0 select-none ${
@@ -28,6 +39,7 @@ export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: Ti
       }`}
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       data-testid="titlebar"
+      onDoubleClick={handleDoubleClick}
     >
       {/* The brand lives in the OS chrome (menu bar, dock, window title);
           inside the window it is a screen-reader-only heading so the page
@@ -42,6 +54,7 @@ export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: Ti
           title="Toggle sidebar (Cmd/Ctrl+B)"
           className="h-6 w-6 text-muted-foreground"
           style={noDrag}
+          data-titlebar-control
         >
           <PanelLeft className="h-3.5 w-3.5" />
         </Button>
@@ -60,6 +73,7 @@ export function TitleBar({ theme, onThemeToggle, onToggleSidebar, children }: Ti
         title="Toggle theme"
         className="h-6 w-6 text-muted-foreground"
         style={noDrag}
+        data-titlebar-control
       >
         {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
       </Button>
