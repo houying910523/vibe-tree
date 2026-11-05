@@ -97,14 +97,19 @@ export interface ElectronAPI {
       import('./notification-settings').NotificationPermissionStatus
     >;
     openSystemSettings: () => Promise<void>;
-    showTest: (type: string, worktreePath: string, branchName: string) => Promise<boolean>;
+    showTest: (
+      type: string,
+      worktreePath: string,
+      branchName: string,
+      agentKind?: 'codex' | 'claude'
+    ) => Promise<boolean>;
     onSettingsChanged: (
       callback: (settings: import('./notification-settings').NotificationSettings) => void
     ) => () => void;
   };
-  // Claude-specific notification APIs - session tracking, state detection
+  // Agent notification APIs - session tracking, state detection
   claudeNotification: {
-    enable: (processId: string) => Promise<boolean>;
+    enable: (processId: string, agentKind?: 'codex' | 'claude') => Promise<boolean>;
     disable: (processId: string) => Promise<void>;
     isEnabled: (processId: string) => Promise<boolean>;
     markUserInput: (processId: string) => Promise<void>;

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { AgentActivityMonitor, stripAnsi } from './agent-activity';
+import {
+  AGENT_NOTIFICATION_CONFIGS,
+  AgentActivityMonitor,
+  getAgentNotificationConfigForCommand,
+  stripAnsi
+} from './agent-activity';
 
 const ESC = String.fromCharCode(0x1b);
 const BEL = String.fromCharCode(0x07);
@@ -53,5 +58,41 @@ describe('AgentActivityMonitor', () => {
     monitor.markUserInput();
     expect(monitor.processOutput(`${ESC}[2K${ESC}[1G`)).toBeNull();
     expect(monitor.processOutput(`${ESC}[32m↵ send${ESC}[0m`)).toBe('completed');
+  });
+
+  it('uses configured Codex patterns', () => {
+    const monitor = new AgentActivityMonitor(AGENT_NOTIFICATION_CONFIGS.codex);
+    monitor.markUserInput();
+    expect(monitor.processOutput('Worked for 28m 38s • 21:27')).toBe('completed');
+
+    monitor.markUserInput();
+    expect(monitor.processOutput('Would you like to run the following command?')).toBe('question');
+  });
+});
+
+describe('agent notification configs', () => {
+  it('detects commands for supported agents', () => {
+    expect(getAgentNotificationConfigForCommand('codex')?.kind).toBe('codex');
+    expect(getAgentNotificationConfigForCommand('/usr/local/bin/claude --continue')?.kind).toBe(
+      'claude'
+    );
+    expect(getAgentNotificationConfigForCommand('python script.py')).toBeNull();
+  });
+
+  it('matches Codex completion and question output', () => {
+    const codex = AGENT_NOTIFICATION_CONFIGS.codex;
+
+    expect(codex.completionPatterns.some((pattern) => pattern.test('Worked for 28m 38s • 21:27')))
+      .toBe(true);
+    expect(
+      codex.questionPatterns.some((pattern) =>
+        pattern.test('Would you like to run the following command?')
+      )
+    ).toBe(true);
+    expect(
+      codex.questionPatterns.some((pattern) =>
+        pattern.test('Would you like to run the folloing command?')
+      )
+    ).toBe(true);
   });
 });

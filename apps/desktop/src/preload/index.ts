@@ -128,17 +128,18 @@ const api = {
     resetSettings: () => ipcRenderer.invoke('notification:reset-settings'),
     getPermissionStatus: () => ipcRenderer.invoke('notification:get-permission-status'),
     openSystemSettings: () => ipcRenderer.invoke('notification:open-system-settings'),
-    showTest: (type: string, worktreePath: string, branchName: string) =>
-      ipcRenderer.invoke('notification:show-test', type, worktreePath, branchName),
+    showTest: (type: string, worktreePath: string, branchName: string, agentKind?: string) =>
+      ipcRenderer.invoke('notification:show-test', type, worktreePath, branchName, agentKind),
     onSettingsChanged: (callback: (settings: Record<string, unknown>) => void) => {
       const listener = (_: unknown, settings: Record<string, unknown>) => callback(settings);
       ipcRenderer.on('notification:settings-changed', listener);
       return () => ipcRenderer.removeListener('notification:settings-changed', listener);
     }
   },
-  // Claude-specific notification APIs - session tracking, state detection
+  // Agent notification APIs - session tracking, state detection
   claudeNotification: {
-    enable: (processId: string) => ipcRenderer.invoke('claude-notification:enable', processId),
+    enable: (processId: string, agentKind?: string) =>
+      ipcRenderer.invoke('claude-notification:enable', processId, agentKind),
     disable: (processId: string) => ipcRenderer.invoke('claude-notification:disable', processId),
     isEnabled: (processId: string) =>
       ipcRenderer.invoke('claude-notification:is-enabled', processId),

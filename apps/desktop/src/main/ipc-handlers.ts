@@ -260,23 +260,27 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
 
   ipcMain.handle(
     'notification:show-test',
-    (_, type: string, worktreePath: string, branchName: string) => {
+    (_, type: string, worktreePath: string, branchName: string, agentKind?: 'codex' | 'claude') => {
       return notificationManager.showTestNotification(
         type as 'completed' | 'question',
         worktreePath,
-        branchName
+        branchName,
+        agentKind
       );
     }
   );
 
   // ===========================================
-  // Claude Notification APIs (claude-notification:*)
-  // These are Claude Code CLI specific - session tracking, state detection
+  // Agent Notification APIs (legacy claude-notification:* channels)
+  // Session tracking and state detection for supported agent CLIs
   // ===========================================
 
-  ipcMain.handle('claude-notification:enable', (_, processId: string) => {
-    return notificationManager.enableNotifications(processId);
-  });
+  ipcMain.handle(
+    'claude-notification:enable',
+    (_, processId: string, agentKind?: 'codex' | 'claude') => {
+      return notificationManager.enableNotifications(processId, agentKind);
+    }
+  );
 
   ipcMain.handle('claude-notification:disable', (_, processId: string) => {
     notificationManager.disableNotifications(processId);

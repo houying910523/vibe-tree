@@ -170,6 +170,22 @@ describe('NotificationManager', () => {
       expect(notificationManager.isEnabled(testProcessId)).toBe(true);
     });
 
+    it('should detect Codex completion and question patterns', () => {
+      notificationManager.enableNotifications(testProcessId, 'codex');
+      notificationManager.markUserInput(testProcessId);
+
+      notificationManager.processOutput(testProcessId, 'Worked for 28m 38s • 21:27');
+      expect(notificationSettingsManager.isNotificationEnabled).toHaveBeenCalled();
+
+      vi.mocked(notificationSettingsManager.isNotificationEnabled).mockClear();
+      notificationManager.markUserInput(testProcessId);
+      notificationManager.processOutput(
+        testProcessId,
+        'Would you like to run the following command?'
+      );
+      expect(notificationSettingsManager.isNotificationEnabled).toHaveBeenCalled();
+    });
+
     it('should always track state even when disabled', () => {
       // Don't enable notifications
 

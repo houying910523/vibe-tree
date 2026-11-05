@@ -14,7 +14,11 @@ import {
 } from './ui/dropdown-menu';
 import { Code2, Columns2, Rows2, X, Search, Clock, Bell, BellOff } from 'lucide-react';
 import { useToast } from './ui/use-toast';
-import { escapeShellPath } from '@vibetree/core';
+import {
+  escapeShellPath,
+  getAgentNotificationConfigForCommand,
+  type AgentNotificationConfig
+} from '@vibetree/core';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalSettings } from '@/types/terminal-settings';
 import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
@@ -112,6 +116,9 @@ export function Terminal({
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const removeListenersRef = useRef<Array<() => void>>([]);
   const initialCommandRef = useRef(initialCommand);
+  const initialAgentNotificationConfigRef = useRef(
+    getAgentNotificationConfigForCommand(initialCommand)
+  );
   const initialCommandSentRef = useRef(false);
   // Guards startShell against concurrent runs (StrictMode double-invoke,
   // fast worktree switches): a stale run must not register listeners, or
@@ -155,18 +162,21 @@ export function Terminal({
       await window.electronAPI.claudeNotification.disable(currentProcessId);
       setNotificationsEnabled(false);
     } else {
-      // Check if Claude is running before enabling
-      const result = await window.electronAPI.shell.getForegroundProcess(currentProcessId);
-      const isClaudeRunning = result?.command?.toLowerCase().includes('claude') ?? false;
+      let agentConfig: AgentNotificationConfig | null = initialAgentNotificationConfigRef.current;
 
-      if (isClaudeRunning) {
+      if (!agentConfig) {
+        const result = await window.electronAPI.shell.getForegroundProcess(currentProcessId);
+        agentConfig = getAgentNotificationConfigForCommand(result?.command);
+      }
+
+      if (agentConfig) {
         // Enable notifications in main process
-        await window.electronAPI.claudeNotification.enable(currentProcessId);
+        await window.electronAPI.claudeNotification.enable(currentProcessId, agentConfig.kind);
         setNotificationsEnabled(true);
       } else {
         toast({
-          title: 'Claude not detected',
-          description: 'Please run Claude in this terminal to enable notifications.',
+          title: 'Agent not detected',
+          description: 'Please run Codex or Claude in this terminal to enable notifications.',
           variant: 'destructive'
         });
       }
@@ -842,6 +852,15 @@ export function Terminal({
         // This prevents stale "enabled" state from previous window sessions
         await window.electronAPI.claudeNotification.disable(result.processId!);
 
+        const initialAgentConfig = initialAgentNotificationConfigRef.current;
+        if (initialAgentConfig) {
+          const enabled = await window.electronAPI.claudeNotification.enable(
+            result.processId!,
+            initialAgentConfig.kind
+          );
+          setNotificationsEnabled(enabled);
+        }
+
         // Scheduler state is already in cache and will be read when needed
         // No need to restore to component state - we read directly from cache
         const cachedScheduler = schedulerStateCache.get(result.processId!);
@@ -904,7 +923,7 @@ export function Terminal({
             if (data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n')) {
               scheduleSoftEnterRefresh();
             }
-            // Only mark user input when user presses ENTER (sends prompt to Claude)
+            // Only mark user input when user presses ENTER (submits to the agent)
             // This prevents resetting notification flag on every keystroke
             // which would cause duplicate notifications while typing
             if (data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n')) {
@@ -960,6 +979,9 @@ export function Terminal({
 
         if (result.isNew && initialCommandRef.current && !initialCommandSentRef.current) {
           await backend.shell.write(result.processId!, `${initialCommandRef.current}\r`);
+          if (initialAgentNotificationConfigRef.current) {
+            await window.electronAPI.claudeNotification.markUserInput(result.processId!);
+          }
           initialCommandSentRef.current = true;
         }
       } catch (error) {

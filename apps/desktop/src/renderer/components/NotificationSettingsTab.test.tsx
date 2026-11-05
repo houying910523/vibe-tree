@@ -44,7 +44,7 @@ describe('NotificationSettingsTab', () => {
       });
 
       expect(
-        screen.getByText('Configure when to receive notifications for Claude Code CLI activity.')
+        screen.getByText('Configure when to receive notifications for agent CLI activity.')
       ).toBeInTheDocument();
       expect(screen.getByText('Enable Notifications')).toBeInTheDocument();
     });

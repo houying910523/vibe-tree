@@ -1,4 +1,4 @@
-import { AgentActivityMonitor } from '@vibetree/core';
+import { AgentActivityMonitor, getAgentNotificationConfigForCommand } from '@vibetree/core';
 
 export type AgentState = 'idle' | 'working' | 'needs-input' | 'done';
 
@@ -44,6 +44,10 @@ export class AgentStateTracker {
   handleInput(sessionId: string, data: string): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
+    const agentConfig = getAgentNotificationConfigForCommand(data);
+    if (agentConfig) {
+      session.monitor.setNotificationConfig(agentConfig);
+    }
     if (data.includes('\r') || data.includes('\n')) {
       session.monitor.markUserInput();
       this.transition(sessionId, 'working');

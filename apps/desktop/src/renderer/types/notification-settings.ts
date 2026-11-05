@@ -6,7 +6,7 @@ export interface NotificationSettings {
 
 export type NotificationSettingsUpdate = Partial<NotificationSettings>;
 
-export type ClaudeNotificationType = 'completed' | 'question';
+export type AgentNotificationEvent = 'completed' | 'question';
 
 export interface NotificationPermissionStatus {
   /** Whether notifications are supported on this platform */

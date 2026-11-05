@@ -4,15 +4,16 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import {
   stripAnsiAndSplitLines,
-  COMPLETION_PATTERNS,
-  QUESTION_PATTERNS
+  AGENT_NOTIFICATION_CONFIGS,
+  type AgentNotificationConfig,
+  type AgentNotificationKind
 } from '@vibetree/core';
 import { notificationSettingsManager } from './notification-settings';
 
 // macOS notification flags - bit 25 controls "Allow Notifications"
 const ALLOW_NOTIFICATIONS_BIT = 1 << 25; // 33554432
 
-export type ClaudeNotificationType = 'completed' | 'question';
+export type AgentNotificationEvent = 'completed' | 'question';
 
 export interface NotificationPermissionStatus {
   supported: boolean;
@@ -21,13 +22,13 @@ export interface NotificationPermissionStatus {
 }
 
 interface NotificationInfo {
-  type: ClaudeNotificationType;
+  type: AgentNotificationEvent;
   worktreePath: string;
   branchName: string;
   processId: string;
 }
 
-type ClaudeState = 'idle' | 'working' | 'completed' | 'question';
+type AgentState = 'idle' | 'working' | 'completed' | 'question';
 
 /**
  * Session tracking for notifications
@@ -35,21 +36,22 @@ type ClaudeState = 'idle' | 'working' | 'completed' | 'question';
  */
 interface SessionNotificationState {
   enabled: boolean;
+  agentConfig: AgentNotificationConfig;
   worktreePath: string;
   branchName: string;
-  currentState: ClaudeState;
+  currentState: AgentState;
   // Track if we've already notified for the current completion
   // Reset when user types (new prompt), not when terminal outputs
   hasNotifiedForCurrentCompletion: boolean;
 }
 
 /**
- * Manager for Claude Code CLI native OS notifications
+ * Manager for AI agent CLI native OS notifications
  *
  * ALL notification logic is in main process:
  * - State detection from terminal output
  * - Tracking enabled/disabled per session
- * - Tracking if Claude has been working since enabled
+ * - Tracking if the agent has been working since enabled
  * - Deciding when to show notifications
  *
  * This avoids all React lifecycle issues in the renderer.
@@ -84,6 +86,7 @@ class NotificationManager {
     if (!this.sessions.has(processId)) {
       this.sessions.set(processId, {
         enabled: false,
+        agentConfig: AGENT_NOTIFICATION_CONFIGS.claude,
         worktreePath,
         branchName,
         currentState: 'idle',
@@ -103,13 +106,14 @@ class NotificationManager {
    * Enable notifications for a session
    * Returns true if enabled successfully
    */
-  enableNotifications(processId: string): boolean {
+  enableNotifications(processId: string, agentKind: AgentNotificationKind = 'claude'): boolean {
     const session = this.sessions.get(processId);
     if (!session) {
       return false;
     }
 
     session.enabled = true;
+    session.agentConfig = AGENT_NOTIFICATION_CONFIGS[agentKind] ?? AGENT_NOTIFICATION_CONFIGS.claude;
     // IMPORTANT: Do NOT reset hasNotifiedForCurrentCompletion here
     // The flag is ONLY reset when user types (markUserInput)
     // This prevents duplicate notifications on window switch + re-enable
@@ -191,14 +195,14 @@ class NotificationManager {
 
     for (const line of lines) {
       // Check for question patterns first (higher priority)
-      const questionMatch = this.matchPatterns(line, QUESTION_PATTERNS);
+      const questionMatch = this.matchPatterns(line, session.agentConfig.questionPatterns);
       if (questionMatch && session.currentState !== 'question') {
         this.transitionTo(session, processId, 'question', now);
         return;
       }
 
       // Check for completion patterns
-      const completionMatch = this.matchPatterns(line, COMPLETION_PATTERNS);
+      const completionMatch = this.matchPatterns(line, session.agentConfig.completionPatterns);
       if (completionMatch && session.currentState !== 'completed') {
         this.transitionTo(session, processId, 'completed', now);
         return;
@@ -216,7 +220,7 @@ class NotificationManager {
   private transitionTo(
     session: SessionNotificationState,
     processId: string,
-    newState: ClaudeState,
+    newState: AgentState,
     _now: number
   ) {
     const prevState = session.currentState;
@@ -250,7 +254,13 @@ class NotificationManager {
 
       // Show the notification and mark as notified
       session.hasNotifiedForCurrentCompletion = true;
-      this.showNotification(newState, session.worktreePath, session.branchName, processId);
+      this.showNotification(
+        newState,
+        session.worktreePath,
+        session.branchName,
+        processId,
+        session.agentConfig
+      );
     }
   }
 
@@ -258,25 +268,28 @@ class NotificationManager {
    * Show a test notification (public method for testing from settings)
    */
   showTestNotification(
-    type: ClaudeNotificationType,
+    type: AgentNotificationEvent,
     worktreePath: string,
-    branchName: string
+    branchName: string,
+    agentKind: AgentNotificationKind = 'claude'
   ): boolean {
     // Check global notification setting
     if (!notificationSettingsManager.isNotificationEnabled()) {
       return false;
     }
-    return this.showNotification(type, worktreePath, branchName, 'test');
+    const agentConfig = AGENT_NOTIFICATION_CONFIGS[agentKind] ?? AGENT_NOTIFICATION_CONFIGS.claude;
+    return this.showNotification(type, worktreePath, branchName, 'test', agentConfig);
   }
 
   /**
    * Show a native notification
    */
   private showNotification(
-    type: ClaudeNotificationType,
+    type: AgentNotificationEvent,
     worktreePath: string,
     branchName: string,
-    processId: string
+    processId: string,
+    agentConfig: AgentNotificationConfig
   ): boolean {
     // Check if Notification is supported
     if (!Notification.isSupported()) {
@@ -286,7 +299,7 @@ class NotificationManager {
     // Create notification content
     const projectName = path.basename(worktreePath);
     const title = `${projectName} (${branchName})`;
-    const body = type === 'completed' ? 'Prompt completed' : 'Ask question';
+    const body = type === 'completed' ? agentConfig.completedBody : agentConfig.questionBody;
 
     // Create and show the notification
     const notification = new Notification({

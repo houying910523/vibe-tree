@@ -140,6 +140,15 @@ describe('Terminal input listener lifecycle', () => {
       detect: vi.fn(async () => []),
       open: vi.fn(async () => ({ success: true }))
     };
+    (
+      window.electronAPI.claudeNotification.enable as ReturnType<typeof vi.fn>
+    ).mockClear();
+    (
+      window.electronAPI.claudeNotification.disable as ReturnType<typeof vi.fn>
+    ).mockClear();
+    (
+      window.electronAPI.claudeNotification.markUserInput as ReturnType<typeof vi.fn>
+    ).mockClear();
   });
 
   it('does not leak input listeners when the worktree changes mid-start', async () => {
@@ -193,6 +202,8 @@ describe('Terminal input listener lifecycle', () => {
     });
 
     await waitFor(() => expect(shellWrite).toHaveBeenCalledWith('pid-0', 'codex\r'));
+    expect(window.electronAPI.claudeNotification.enable).toHaveBeenCalledWith('pid-0', 'codex');
+    expect(window.electronAPI.claudeNotification.markUserInput).toHaveBeenCalledWith('pid-0');
   });
 
   it('does not run the initial command when reattaching to an existing shell', async () => {

@@ -237,7 +237,7 @@ export function NotificationSettingsTab({ isVisible }: NotificationSettingsTabPr
       <div>
         <h3 className="text-lg font-medium mb-1">Notification Settings</h3>
         <p className="text-sm text-muted-foreground">
-          Configure when to receive notifications for Claude Code CLI activity.
+          Configure when to receive notifications for agent CLI activity.
         </p>
       </div>
 
@@ -253,7 +253,7 @@ export function NotificationSettingsTab({ isVisible }: NotificationSettingsTabPr
           <div>
             <p className="text-sm font-medium">Enable Notifications</p>
             <p className="text-xs text-muted-foreground">
-              Receive notifications when Claude completes tasks or asks questions
+              Receive notifications when an agent completes tasks or asks questions
             </p>
           </div>
         </div>

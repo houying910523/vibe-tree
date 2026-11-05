@@ -38,6 +38,51 @@ export const QUESTION_PATTERNS: RegExp[] = [
 
 export type AgentActivityEvent = 'completed' | 'question';
 
+export type AgentNotificationKind = 'codex' | 'claude';
+
+export interface AgentNotificationConfig {
+  kind: AgentNotificationKind;
+  displayName: string;
+  commandPatterns: RegExp[];
+  completionPatterns: RegExp[];
+  questionPatterns: RegExp[];
+  completedBody: string;
+  questionBody: string;
+}
+
+export const AGENT_NOTIFICATION_CONFIGS: Record<AgentNotificationKind, AgentNotificationConfig> = {
+  claude: {
+    kind: 'claude',
+    displayName: 'Claude',
+    commandPatterns: [/(^|[\\/\s])claude(?:-code)?(?=$|[\\/\s])/i],
+    completionPatterns: COMPLETION_PATTERNS,
+    questionPatterns: QUESTION_PATTERNS,
+    completedBody: 'Claude prompt completed',
+    questionBody: 'Claude asks a question'
+  },
+  codex: {
+    kind: 'codex',
+    displayName: 'Codex',
+    commandPatterns: [/(^|[\\/\s])codex(?=$|[\\/\s])/i],
+    completionPatterns: [/Worked for\s+.+\s+•\s+\d{1,2}:\d{2}\s*$/i],
+    questionPatterns: [/Would you like to run the follo(?:w)?ing command/i],
+    completedBody: 'Codex prompt completed',
+    questionBody: 'Codex asks to run a command'
+  }
+};
+
+export function getAgentNotificationConfigForCommand(
+  command: string | null | undefined
+): AgentNotificationConfig | null {
+  if (!command) return null;
+
+  return (
+    Object.values(AGENT_NOTIFICATION_CONFIGS).find((config) =>
+      config.commandPatterns.some((pattern) => pattern.test(command))
+    ) ?? null
+  );
+}
+
 type AgentState = 'idle' | 'working' | 'completed' | 'question';
 
 /**
@@ -49,6 +94,15 @@ type AgentState = 'idle' | 'working' | 'completed' | 'question';
 export class AgentActivityMonitor {
   private state: AgentState = 'idle';
   private hasNotifiedForCurrentCompletion = false;
+  private config: AgentNotificationConfig;
+
+  constructor(config: AgentNotificationConfig = AGENT_NOTIFICATION_CONFIGS.claude) {
+    this.config = config;
+  }
+
+  setNotificationConfig(config: AgentNotificationConfig): void {
+    this.config = config;
+  }
 
   markUserInput(): void {
     this.hasNotifiedForCurrentCompletion = false;
@@ -59,11 +113,11 @@ export class AgentActivityMonitor {
     const lines = stripAnsiAndSplitLines(data);
 
     for (const line of lines) {
-      if (QUESTION_PATTERNS.some((pattern) => pattern.test(line))) {
+      if (this.config.questionPatterns.some((pattern) => pattern.test(line))) {
         if (this.state !== 'question') return this.transitionTo('question');
         return null;
       }
-      if (COMPLETION_PATTERNS.some((pattern) => pattern.test(line))) {
+      if (this.config.completionPatterns.some((pattern) => pattern.test(line))) {
         if (this.state !== 'completed') return this.transitionTo('completed');
         return null;
       }
