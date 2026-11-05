@@ -114,6 +114,7 @@ export function Terminal({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
+  const terminalDisposedRef = useRef(false);
   const removeListenersRef = useRef<Array<() => void>>([]);
   const initialCommandRef = useRef(initialCommand);
   const initialAgentNotificationConfigRef = useRef(
@@ -138,6 +139,15 @@ export function Terminal({
   // Which pane owns the keyboard: with several terminals in a grid this is
   // otherwise only visible by cursor blink
   const [isFocused, setIsFocused] = useState(false);
+
+  const saveTerminalState = useCallback(() => {
+    if (terminalDisposedRef.current || !serializeAddonRef.current || !processIdRef.current) {
+      return;
+    }
+
+    const serializedState = serializeAddonRef.current.serialize();
+    terminalStateCache.set(processIdRef.current, serializedState);
+  }, []);
   const { toast } = useToast();
 
   // Scheduler state - only UI state in component, actual scheduler state in cache
@@ -590,6 +600,8 @@ export function Terminal({
       }
     };
 
+    terminalDisposedRef.current = false;
+
     const term = new XTermTerminal({
       theme: getTerminalTheme(theme),
       fontFamily: settings.fontFamily,
@@ -778,6 +790,8 @@ export function Terminal({
 
     return () => {
       console.log(`[Terminal] Cleanup for: ${worktreePath}`);
+      saveTerminalState();
+      terminalDisposedRef.current = true;
       clearTimeout(resizeDebounceTimer);
       resizeObserver.disconnect();
       if (softEnterRefreshTimerRef.current) {
@@ -795,18 +809,14 @@ export function Terminal({
       keyDisposable.dispose();
       term.dispose();
     };
-  }, []); // Empty dependency array - terminal only initializes once
+  }, [saveTerminalState]); // saveTerminalState is stable; terminal only initializes once
 
   // Save terminal state before unmounting or changing worktree
   useEffect(() => {
     return () => {
-      if (terminal && serializeAddonRef.current && processIdRef.current) {
-        // Save the current terminal state
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
-      }
+      if (terminal) saveTerminalState();
     };
-  }, [terminal, worktreePath]);
+  }, [terminal, worktreePath, saveTerminalState]);
 
   // Notify parent about process ID changes
   useEffect(() => {
@@ -1045,16 +1055,13 @@ export function Terminal({
 
     return () => {
       // Save state before cleaning up
-      if (serializeAddonRef.current && processIdRef.current) {
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
-      }
+      saveTerminalState();
 
       // Clean up listeners when worktree changes
       removeListenersRef.current.forEach((remove) => remove());
       removeListenersRef.current = [];
     };
-  }, [terminal, worktreePath, terminalId, scheduleSoftEnterRefresh]);
+  }, [terminal, worktreePath, terminalId, scheduleSoftEnterRefresh, saveTerminalState]);
 
   // Detect available IDEs
   useEffect(() => {
