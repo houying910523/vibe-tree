@@ -3,10 +3,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { TerminalGrid } from './TerminalGrid';
 import { GitDiffView } from './GitDiffView';
 import { Bot, Terminal, GitBranch } from 'lucide-react';
-import {
-  getAgentCommandForWorktree,
-  type AgentCommand
-} from '@/services/worktreeAgentCommands';
+import { getAgentCommandForWorktree, type AgentCommand } from '@/services/worktreeAgentCommands';
+import { isRightPaneTab, RIGHT_PANE_TAB_SHORTCUT_EVENT, type RightPaneTab } from './rightPaneTabs';
 
 interface RightPaneViewProps {
   worktreePath: string;
@@ -15,7 +13,7 @@ interface RightPaneViewProps {
 }
 
 export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewProps) {
-  const [activeTab, setActiveTab] = useState('terminal');
+  const [activeTab, setActiveTab] = useState<RightPaneTab>('terminal');
   const [agentCommandState, setAgentCommandState] = useState<{
     worktreePath: string;
     loaded: boolean;
@@ -32,6 +30,16 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
     const toggle = () => setActiveTab((tab) => (tab === 'terminal' ? 'git-diff' : 'terminal'));
     window.addEventListener('vibetree:toggle-view', toggle);
     return () => window.removeEventListener('vibetree:toggle-view', toggle);
+  }, []);
+
+  useEffect(() => {
+    const selectTab = (event: Event) => {
+      const tab = (event as CustomEvent<string>).detail;
+      if (isRightPaneTab(tab)) setActiveTab(tab);
+    };
+
+    window.addEventListener(RIGHT_PANE_TAB_SHORTCUT_EVENT, selectTab);
+    return () => window.removeEventListener(RIGHT_PANE_TAB_SHORTCUT_EVENT, selectTab);
   }, []);
 
   useEffect(() => {
@@ -67,7 +75,13 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          if (isRightPaneTab(value)) setActiveTab(value);
+        }}
+        className="flex-1 flex flex-col min-h-0"
+      >
         <div className="border-b border-border/60 flex items-center h-10 px-2 flex-shrink-0">
           <TabsList className="h-7 bg-muted p-0.5 rounded-md gap-0.5">
             <TabsTrigger
@@ -96,11 +110,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
         <TabsContent value="terminal" className="flex-1 m-0 h-full min-h-0">
           {agentCommandLoaded && (
-            <TerminalGrid
-              worktreePath={worktreePath}
-              projectId={projectId}
-              theme={theme}
-            />
+            <TerminalGrid worktreePath={worktreePath} projectId={projectId} theme={theme} />
           )}
         </TabsContent>
 

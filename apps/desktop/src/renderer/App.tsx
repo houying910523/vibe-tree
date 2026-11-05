@@ -11,6 +11,10 @@ import { GlobalTerminalSettings } from './components/GlobalTerminalSettings';
 import { GlobalSettings } from './components/GlobalSettings';
 import { OnboardingDialog } from './components/OnboardingDialog';
 import {
+  getRightPaneTabForShortcut,
+  RIGHT_PANE_TAB_SHORTCUT_EVENT
+} from './components/rightPaneTabs';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -63,6 +67,19 @@ function AppContent() {
       })
     ];
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe?.());
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const tab = getRightPaneTabForShortcut(event);
+      if (!tab) return;
+
+      event.preventDefault();
+      window.dispatchEvent(new CustomEvent(RIGHT_PANE_TAB_SHORTCUT_EVENT, { detail: tab }));
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
   useEffect(() => {

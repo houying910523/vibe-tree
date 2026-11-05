@@ -23,10 +23,20 @@ import '@xterm/xterm/css/xterm.css';
 import type { TerminalSettings } from '@/types/terminal-settings';
 import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
 import { backend } from '@/services/backend';
+import { getRightPaneTabForShortcut } from './rightPaneTabs';
 
 const SOFT_ENTER_SEQUENCE = '\u001b[13;2u';
+const WORD_LEFT_SEQUENCE = '\u001bb';
+const WORD_RIGHT_SEQUENCE = '\u001bf';
 const SOFT_ENTER_COMMAND_PATTERN = /(^|[\\/\s])(codex|pi)(?=$|[\\/\s])|pi-coding-agent/i;
 const MOUSE_REPORTING_MODES = new Set(['9', '1000', '1002', '1003', '1005', '1006', '1015']);
+const TERMINAL_APPLICATION_MODES = new Set([
+  ...MOUSE_REPORTING_MODES,
+  '47',
+  '1047',
+  '1048',
+  '1049'
+]);
 const DEC_PRIVATE_MODE_SEQUENCE = /\u001b\[\?([0-9;]*)([hl])/g;
 
 const DEFAULT_TERMINAL_FONT_FAMILY =
@@ -46,6 +56,23 @@ function stripMouseReportingEnableSequences(data: string): string {
 
 function isSoftEnterCommand(command: string | null | undefined): boolean {
   return Boolean(command && SOFT_ENTER_COMMAND_PATTERN.test(command));
+}
+
+function updateTerminalApplicationModes(data: string, activeModes: Set<string>) {
+  DEC_PRIVATE_MODE_SEQUENCE.lastIndex = 0;
+  for (const match of data.matchAll(DEC_PRIVATE_MODE_SEQUENCE)) {
+    const modes = match[1].split(';').filter(Boolean);
+    const command = match[2];
+
+    for (const mode of modes) {
+      if (!TERMINAL_APPLICATION_MODES.has(mode)) continue;
+      if (command === 'h') {
+        activeModes.add(mode);
+      } else {
+        activeModes.delete(mode);
+      }
+    }
+  }
 }
 
 interface TerminalProps {
@@ -153,6 +180,7 @@ export function Terminal({
   const [isDragOver, setIsDragOver] = useState(false);
   const softEnterEnabledRef = useRef(false);
   const disableMouseReportingRef = useRef(isSoftEnterCommand(initialCommand));
+  const terminalApplicationModesRef = useRef<Set<string>>(new Set());
   const softEnterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const softEnterRefreshInFlightRef = useRef<Promise<void> | null>(null);
   // Which pane owns the keyboard: with several terminals in a grid this is
@@ -639,6 +667,34 @@ export function Terminal({
     });
 
     term.attachCustomKeyEventHandler((event) => {
+      const rightPaneTab = getRightPaneTabForShortcut(event);
+      if (rightPaneTab && (event.type === 'keydown' || event.type === 'keypress')) {
+        event.preventDefault();
+        return false;
+      }
+
+      const isOptionArrow =
+        event.type === 'keydown' &&
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        (event.key === 'ArrowLeft' || event.key === 'ArrowRight');
+
+      if (
+        isOptionArrow &&
+        processIdRef.current &&
+        terminalApplicationModesRef.current.size === 0 &&
+        !softEnterEnabledRef.current
+      ) {
+        event.preventDefault();
+        backend.shell.write(
+          processIdRef.current,
+          event.key === 'ArrowLeft' ? WORD_LEFT_SEQUENCE : WORD_RIGHT_SEQUENCE
+        );
+        return false;
+      }
+
       const isShiftEnter =
         (event.key === 'Enter' || event.keyCode === 13) &&
         event.shiftKey &&
@@ -851,6 +907,7 @@ export function Terminal({
     if (!terminal || !worktreePath) return;
 
     softEnterEnabledRef.current = false;
+    terminalApplicationModesRef.current.clear();
     if (softEnterRefreshTimerRef.current) {
       clearTimeout(softEnterRefreshTimerRef.current);
       softEnterRefreshTimerRef.current = null;
@@ -1013,6 +1070,7 @@ export function Terminal({
 
         // Set up output listener
         const removeOutputListener = backend.shell.onOutput(result.processId!, (data) => {
+          updateTerminalApplicationModes(data, terminalApplicationModesRef.current);
           terminal.write(
             disableMouseReportingRef.current ? stripMouseReportingEnableSequences(data) : data
           );
@@ -1028,6 +1086,7 @@ export function Terminal({
           processIdRef.current = '';
           softEnterEnabledRef.current = false;
           disableMouseReportingRef.current = false;
+          terminalApplicationModesRef.current.clear();
 
           // Clean up scheduler state when PTY exits
           if (exitedProcessId) {

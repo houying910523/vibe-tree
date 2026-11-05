@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RightPaneView } from './RightPaneView';
+import { RIGHT_PANE_TAB_SHORTCUT_EVENT } from './rightPaneTabs';
 
 const mocks = vi.hoisted(() => ({
   getAgentCommandForWorktree: vi.fn()
@@ -42,5 +43,20 @@ describe('RightPaneView', () => {
 
     expect(screen.queryByTestId('terminal-grid')).not.toBeInTheDocument();
     expect(screen.queryByTestId('agent-grid')).not.toBeInTheDocument();
+  });
+
+  it('switches tabs from the global right pane shortcut event', async () => {
+    mocks.getAgentCommandForWorktree.mockResolvedValue(undefined);
+
+    render(<RightPaneView worktreePath="/repo/feature" />);
+
+    expect(await screen.findByTestId('terminal-grid')).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(RIGHT_PANE_TAB_SHORTCUT_EVENT, { detail: 'git-diff' }));
+    });
+
+    expect(screen.getByRole('tab', { name: /changes/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('git-diff-view')).toBeInTheDocument();
   });
 });

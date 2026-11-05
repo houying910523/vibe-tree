@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, act } from '@testing-library/react';
 
 const SOFT_ENTER_SEQUENCE = '\u001b[13;2u';
+const WORD_LEFT_SEQUENCE = '\u001bb';
+const WORD_RIGHT_SEQUENCE = '\u001bf';
 
 vi.mock('@xterm/xterm', () => {
   interface Disposable {
@@ -257,6 +259,65 @@ describe('Terminal soft enter', () => {
 
     expect(result.allowed).toBe(true);
     expect(result.preventDefault).not.toHaveBeenCalled();
+    expect(shellWrite).not.toHaveBeenCalled();
+  });
+
+  it('maps Option+Arrow to shell word movement outside terminal apps', async () => {
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+    shellWrite.mockClear();
+
+    const left = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true
+    });
+    const right = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: 'ArrowRight',
+      altKey: true
+    });
+
+    expect(left.allowed).toBe(false);
+    expect(right.allowed).toBe(false);
+    expect(left.preventDefault).toHaveBeenCalledTimes(1);
+    expect(right.preventDefault).toHaveBeenCalledTimes(1);
+    expect(shellWrite).toHaveBeenNthCalledWith(1, 'pid-1', WORD_LEFT_SEQUENCE);
+    expect(shellWrite).toHaveBeenNthCalledWith(2, 'pid-1', WORD_RIGHT_SEQUENCE);
+  });
+
+  it('lets terminal apps handle Option+Arrow keys', async () => {
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      outputListeners.get('pid-1')?.('\u001b[?1049h');
+    });
+    shellWrite.mockClear();
+
+    const result = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.preventDefault).not.toHaveBeenCalled();
+    expect(shellWrite).not.toHaveBeenCalled();
+  });
+
+  it('does not send Alt+number tab shortcuts to the shell', async () => {
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+    shellWrite.mockClear();
+
+    const result = FakeTerminal.instances[0].dispatchKeyEvent('keydown', {
+      key: '1',
+      altKey: true
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.preventDefault).toHaveBeenCalledTimes(1);
     expect(shellWrite).not.toHaveBeenCalled();
   });
 });
