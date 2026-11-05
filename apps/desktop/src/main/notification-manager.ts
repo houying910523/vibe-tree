@@ -186,15 +186,6 @@ class NotificationManager {
     const lines = stripAnsiAndSplitLines(data);
     if (lines.length === 0) return;
 
-    if (session.enabled) {
-      this.log('processing output', {
-        processId,
-        agentKind: session.agentConfig.kind,
-        currentState: session.currentState,
-        lines: lines.slice(-5)
-      });
-    }
-
     // Always analyze state changes - notification decision is in transitionTo
     this.analyzeForStateChange(session, processId, lines);
   }
