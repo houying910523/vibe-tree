@@ -90,7 +90,17 @@ export function useWorktreePanelState({
 
       try {
         const result = await backend.git.addWorktree(projectPath, branchName);
-        setAgentCommandForWorktree(result.path, agentCommand);
+        try {
+          await setAgentCommandForWorktree(result.path, agentCommand);
+        } catch (error) {
+          console.warn('Failed to save worktree agent command:', error);
+          toast({
+            title: 'Worktree created, agent preset not saved',
+            description:
+              'The worktree was created, but its agent tab may not auto-open after restart.',
+            variant: 'destructive'
+          });
+        }
         if (result.hook && !result.hook.ok) {
           toast({
             title: 'Worktree created, setup hook failed',

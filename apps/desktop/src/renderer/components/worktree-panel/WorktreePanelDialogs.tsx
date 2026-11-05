@@ -124,7 +124,11 @@ export function WorktreePanelDialogs({
       }
 
       cleanupWorktreeTerminals(deletingWorktree.path);
-      clearAgentCommandForWorktree(deletingWorktree.path);
+      try {
+        await clearAgentCommandForWorktree(deletingWorktree.path);
+      } catch (error) {
+        console.warn('Failed to clear worktree agent command:', error);
+      }
 
       updateDeletionStep(1, { status: 'in-progress' });
       updateDeletionStep(2, { status: 'in-progress' });

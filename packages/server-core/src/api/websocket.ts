@@ -8,7 +8,9 @@ import {
   addWorktree,
   removeWorktree,
   mergeWorktreeIntoRoot,
-  rebaseWorktreeOntoRoot
+  rebaseWorktreeOntoRoot,
+  readProjectConfig,
+  writeProjectConfig
 } from '@vibetree/core';
 import { ShellManager } from '../services/ShellManager';
 import { AgentStateTracker } from '../services/AgentStateTracker';
@@ -428,6 +430,30 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
                   message.payload.projectPath,
                   message.payload.worktreePath
                 )
+              );
+            } catch (error) {
+              respondError(error);
+            }
+            break;
+          }
+
+          case 'project:config:get': {
+            try {
+              respond(
+                'project:config:get:response',
+                await readProjectConfig(message.payload.projectPath)
+              );
+            } catch (error) {
+              respondError(error);
+            }
+            break;
+          }
+
+          case 'project:config:update': {
+            try {
+              respond(
+                'project:config:update:response',
+                await writeProjectConfig(message.payload.projectPath, message.payload.updates)
               );
             } catch (error) {
               respondError(error);

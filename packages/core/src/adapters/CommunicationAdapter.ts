@@ -11,6 +11,7 @@ import {
   WorktreeGitOperationResult,
   IDE
 } from '../types';
+import type { ProjectConfig } from '../utils/project-config';
 
 /**
  * Unified communication interface for VibeTree applications.
@@ -141,6 +142,9 @@ export interface CommunicationAdapter {
     worktreePath: string
   ): Promise<WorktreeGitOperationResult>;
 
+  readProjectConfig(projectPath: string): Promise<ProjectConfig>;
+  writeProjectConfig(projectPath: string, updates: ProjectConfig): Promise<ProjectConfig>;
+
   /**
    * Detect installed IDEs on the system
    * @returns Array of available IDEs with their launch commands
@@ -212,6 +216,11 @@ export abstract class BaseAdapter implements CommunicationAdapter {
     projectPath: string,
     worktreePath: string
   ): Promise<WorktreeGitOperationResult>;
+  abstract readProjectConfig(projectPath: string): Promise<ProjectConfig>;
+  abstract writeProjectConfig(
+    projectPath: string,
+    updates: ProjectConfig
+  ): Promise<ProjectConfig>;
 
   abstract detectIDEs(): Promise<IDE[]>;
   abstract openInIDE(

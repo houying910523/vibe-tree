@@ -3,7 +3,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { TerminalGrid } from './TerminalGrid';
 import { GitDiffView } from './GitDiffView';
 import { Bot, Terminal, GitBranch } from 'lucide-react';
-import { getAgentCommandForWorktree } from '@/services/worktreeAgentCommands';
+import {
+  getAgentCommandForWorktree,
+  type AgentCommand
+} from '@/services/worktreeAgentCommands';
 
 interface RightPaneViewProps {
   worktreePath: string;
@@ -12,9 +15,17 @@ interface RightPaneViewProps {
 }
 
 export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewProps) {
-  const agentCommand = getAgentCommandForWorktree(worktreePath);
-  const [activeTab, setActiveTab] = useState(agentCommand ? 'agent' : 'terminal');
-  const agentTabOpenedForWorktree = useRef<string | null>(agentCommand ? worktreePath : null);
+  const [activeTab, setActiveTab] = useState('terminal');
+  const [agentCommandState, setAgentCommandState] = useState<{
+    worktreePath: string;
+    loaded: boolean;
+    command?: AgentCommand;
+  }>({ worktreePath, loaded: false });
+  const agentCommandLoaded =
+    agentCommandState.worktreePath === worktreePath && agentCommandState.loaded;
+  const agentCommand =
+    agentCommandState.worktreePath === worktreePath ? agentCommandState.command : undefined;
+  const agentTabOpenedForWorktree = useRef<string | null>(null);
 
   // Fired by the Worktree menu accelerator; only the visible pane is mounted
   useEffect(() => {
@@ -24,16 +35,35 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
   }, []);
 
   useEffect(() => {
-    if (agentCommand && agentTabOpenedForWorktree.current !== worktreePath) {
-      agentTabOpenedForWorktree.current = worktreePath;
-      setActiveTab('agent');
-      return;
-    }
+    let cancelled = false;
+    setAgentCommandState({ worktreePath, loaded: false });
 
-    if (!agentCommand) {
-      setActiveTab((tab) => (tab === 'agent' ? 'terminal' : tab));
-    }
-  }, [agentCommand, worktreePath]);
+    getAgentCommandForWorktree(worktreePath)
+      .then((command) => {
+        if (cancelled) return;
+
+        setAgentCommandState({ worktreePath, loaded: true, command });
+        if (command && agentTabOpenedForWorktree.current !== worktreePath) {
+          agentTabOpenedForWorktree.current = worktreePath;
+          setActiveTab('agent');
+          return;
+        }
+
+        if (!command) {
+          setActiveTab((tab) => (tab === 'agent' ? 'terminal' : tab));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAgentCommandState({ worktreePath, loaded: true });
+          setActiveTab((tab) => (tab === 'agent' ? 'terminal' : tab));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [worktreePath]);
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
@@ -65,21 +95,25 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
         </div>
 
         <TabsContent value="terminal" className="flex-1 m-0 h-full">
-          <TerminalGrid
-            worktreePath={worktreePath}
-            projectId={projectId}
-            theme={theme}
-          />
+          {agentCommandLoaded && (
+            <TerminalGrid
+              worktreePath={worktreePath}
+              projectId={projectId}
+              theme={theme}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="agent" className="flex-1 m-0 h-full">
-          <TerminalGrid
-            worktreePath={worktreePath}
-            projectId={projectId}
-            theme={theme}
-            cacheKey={`${worktreePath}:agent`}
-            initialCommand={agentCommand}
-          />
+          {agentCommandLoaded && (agentCommand || activeTab === 'agent') && (
+            <TerminalGrid
+              worktreePath={worktreePath}
+              projectId={projectId}
+              theme={theme}
+              cacheKey={`${worktreePath}:agent`}
+              initialCommand={agentCommand}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="git-diff" className="flex-1 m-0 h-full">

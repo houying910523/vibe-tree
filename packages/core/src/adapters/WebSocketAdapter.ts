@@ -11,6 +11,7 @@ import type {
   WorktreeGitOperationResult,
   IDE
 } from '../types';
+import type { ProjectConfig } from '../utils/project-config';
 
 type EventHandler = (data: any) => void;
 
@@ -256,6 +257,14 @@ export class WebSocketAdapter extends BaseAdapter {
     worktreePath: string
   ): Promise<WorktreeGitOperationResult> {
     return this.sendMessage('git:worktree:rebase', { projectPath, worktreePath });
+  }
+
+  async readProjectConfig(projectPath: string): Promise<ProjectConfig> {
+    return this.sendMessage('project:config:get', { projectPath });
+  }
+
+  async writeProjectConfig(projectPath: string, updates: ProjectConfig): Promise<ProjectConfig> {
+    return this.sendMessage('project:config:update', { projectPath, updates });
   }
 
   async detectIDEs(): Promise<IDE[]> {

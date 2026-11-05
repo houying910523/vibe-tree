@@ -64,6 +64,19 @@ function subscribe(attach: (adapter: WebSocketAdapter) => Unsubscribe): Unsubscr
 }
 
 export const backend = {
+  projectConfig: {
+    get: async (projectPath: string): Promise<{ agentCommand?: string }> => {
+      const adapter = await getAdapter();
+      return adapter.readProjectConfig(projectPath);
+    },
+    update: async (
+      projectPath: string,
+      updates: { agentCommand?: string }
+    ): Promise<{ agentCommand?: string }> => {
+      const adapter = await getAdapter();
+      return adapter.writeProjectConfig(projectPath, updates);
+    }
+  },
   shell: {
     start: async (
       worktreePath: string,

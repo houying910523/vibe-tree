@@ -2,9 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Per-project VibeTree configuration, stored inside the repository at
- * .vibetree/config.json next to the lifecycle hooks, so a team can commit
- * shared defaults (which agent CLI this project uses).
+ * VibeTree configuration stored inside a project/worktree at
+ * .vibetree/config.json, so local workspace state disappears with that tree.
  */
 export interface ProjectConfig {
   agentCommand?: string;
