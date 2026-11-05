@@ -58,6 +58,7 @@ interface SessionNotificationState {
  */
 class NotificationManager {
   private sessions: Map<string, SessionNotificationState> = new Map();
+  private activeNotifications = new Set<Notification>();
   private mainWindow: BrowserWindow | null = null;
   private _initialized = false;
 
@@ -391,19 +392,54 @@ class NotificationManager {
       branchName,
       processId
     };
+    const permissionStatus = this.getPermissionStatus();
+    const releaseNotification = () => {
+      this.activeNotifications.delete(notification);
+    };
 
     // Handle notification click
     notification.on('click', () => {
+      this.log('notification click event', {
+        processId,
+        agentKind: agentConfig.kind,
+        type
+      });
       this.handleNotificationClick(notificationInfo);
     });
+    notification.on('show', () => {
+      this.log('notification show event', {
+        processId,
+        agentKind: agentConfig.kind,
+        type
+      });
+    });
+    notification.on('failed', (_event, error) => {
+      this.log('notification failed event', {
+        processId,
+        agentKind: agentConfig.kind,
+        type,
+        error
+      });
+      releaseNotification();
+    });
+    notification.on('close', () => {
+      this.log('notification close event', {
+        processId,
+        agentKind: agentConfig.kind,
+        type
+      });
+      releaseNotification();
+    });
 
+    this.activeNotifications.add(notification);
     notification.show();
-    this.log('shown notification', {
+    this.log('requested notification', {
       processId,
       agentKind: agentConfig.kind,
       type,
       title,
-      body
+      body,
+      permissionStatus
     });
     return true;
   }
