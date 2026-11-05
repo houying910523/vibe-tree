@@ -180,6 +180,14 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
         </div>
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+          {selectedFile && !error ? (
+            <div className="h-11 px-4 border-b bg-muted/30 flex items-center min-w-0 flex-shrink-0">
+              <FileText className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium truncate" title={selectedFile}>
+                {selectedFile}
+              </span>
+            </div>
+          ) : null}
           {error ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
