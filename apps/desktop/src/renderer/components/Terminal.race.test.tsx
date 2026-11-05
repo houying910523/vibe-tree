@@ -206,6 +206,26 @@ describe('Terminal input listener lifecycle', () => {
     expect(window.electronAPI.claudeNotification.markUserInput).toHaveBeenCalledWith('pid-0');
   });
 
+  it('enables notifications when a user manually starts Codex', async () => {
+    render(<Terminal worktreePath="/tmp/repo-a" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      startResolvers[0]();
+    });
+
+    await waitFor(() => expect(FakeTerminal.instances[0].liveDataHandlerCount).toBe(1));
+    await act(async () => {
+      FakeTerminal.instances[0].emitData('codex');
+      FakeTerminal.instances[0].emitData('\r');
+    });
+
+    await waitFor(() =>
+      expect(window.electronAPI.claudeNotification.enable).toHaveBeenCalledWith('pid-0', 'codex')
+    );
+    expect(window.electronAPI.claudeNotification.markUserInput).toHaveBeenCalledWith('pid-0');
+  });
+
   it('does not run the initial command when reattaching to an existing shell', async () => {
     shellStart.mockResolvedValueOnce({
       success: true,

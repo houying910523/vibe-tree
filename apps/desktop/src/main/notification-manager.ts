@@ -61,6 +61,14 @@ class NotificationManager {
   private mainWindow: BrowserWindow | null = null;
   private _initialized = false;
 
+  private log(message: string, details?: Record<string, unknown>) {
+    if (details) {
+      console.log(`[AgentNotification] ${message}`, details);
+    } else {
+      console.log(`[AgentNotification] ${message}`);
+    }
+  }
+
   /**
    * Initialize the notification manager with the main window reference
    */
@@ -92,6 +100,7 @@ class NotificationManager {
         currentState: 'idle',
         hasNotifiedForCurrentCompletion: false
       });
+      this.log('registered session', { processId, worktreePath, branchName });
     }
   }
 
@@ -99,7 +108,9 @@ class NotificationManager {
    * Unregister a terminal session
    */
   unregisterSession(processId: string) {
-    this.sessions.delete(processId);
+    if (this.sessions.delete(processId)) {
+      this.log('unregistered session', { processId });
+    }
   }
 
   /**
@@ -114,6 +125,11 @@ class NotificationManager {
 
     session.enabled = true;
     session.agentConfig = AGENT_NOTIFICATION_CONFIGS[agentKind] ?? AGENT_NOTIFICATION_CONFIGS.claude;
+    this.log('enabled session', {
+      processId,
+      agentKind: session.agentConfig.kind,
+      currentState: session.currentState
+    });
     // IMPORTANT: Do NOT reset hasNotifiedForCurrentCompletion here
     // The flag is ONLY reset when user types (markUserInput)
     // This prevents duplicate notifications on window switch + re-enable
@@ -128,6 +144,7 @@ class NotificationManager {
     const session = this.sessions.get(processId);
     if (session) {
       session.enabled = false;
+      this.log('disabled session', { processId, agentKind: session.agentConfig.kind });
     }
   }
 
@@ -148,6 +165,7 @@ class NotificationManager {
       // User typed something - reset flag to allow notification for next completion
       session.hasNotifiedForCurrentCompletion = false;
       session.currentState = 'working';
+      this.log('marked user input', { processId, agentKind: session.agentConfig.kind });
     }
   }
 
@@ -166,6 +184,15 @@ class NotificationManager {
     // Strip ANSI and split into lines
     const lines = stripAnsiAndSplitLines(data);
     if (lines.length === 0) return;
+
+    if (session.enabled) {
+      this.log('processing output', {
+        processId,
+        agentKind: session.agentConfig.kind,
+        currentState: session.currentState,
+        lines: lines.slice(-5)
+      });
+    }
 
     // Always analyze state changes - notification decision is in transitionTo
     this.analyzeForStateChange(session, processId, lines);
@@ -197,6 +224,12 @@ class NotificationManager {
       // Check for question patterns first (higher priority)
       const questionMatch = this.matchPatterns(line, session.agentConfig.questionPatterns);
       if (questionMatch && session.currentState !== 'question') {
+        this.log('matched question pattern', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          pattern: questionMatch,
+          line
+        });
         this.transitionTo(session, processId, 'question', now);
         return;
       }
@@ -204,6 +237,12 @@ class NotificationManager {
       // Check for completion patterns
       const completionMatch = this.matchPatterns(line, session.agentConfig.completionPatterns);
       if (completionMatch && session.currentState !== 'completed') {
+        this.log('matched completion pattern', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          pattern: completionMatch,
+          line
+        });
         this.transitionTo(session, processId, 'completed', now);
         return;
       }
@@ -225,11 +264,25 @@ class NotificationManager {
   ) {
     const prevState = session.currentState;
     session.currentState = newState;
+    this.log('state transition', {
+      processId,
+      agentKind: session.agentConfig.kind,
+      prevState,
+      newState,
+      enabled: session.enabled,
+      hasNotifiedForCurrentCompletion: session.hasNotifiedForCurrentCompletion
+    });
 
     // Only trigger notifications for completed or question states
     if (newState === 'completed' || newState === 'question') {
       // Must be enabled
       if (!session.enabled) {
+        this.log('skip notification: session disabled', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          prevState,
+          newState
+        });
         return;
       }
 
@@ -238,17 +291,33 @@ class NotificationManager {
       // - Terminal already shows completion when notifications are enabled (idle -> completed)
       // - Re-detecting same completion pattern
       if (prevState !== 'working') {
+        this.log('skip notification: previous state was not working', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          prevState,
+          newState
+        });
         return;
       }
 
       // KEY CHECK: Only notify ONCE per completion
       // This flag is reset when user presses ENTER (markUserInput)
       if (session.hasNotifiedForCurrentCompletion) {
+        this.log('skip notification: already notified for current completion', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          newState
+        });
         return;
       }
 
       // Check global notification setting
       if (!notificationSettingsManager.isNotificationEnabled()) {
+        this.log('skip notification: global setting disabled', {
+          processId,
+          agentKind: session.agentConfig.kind,
+          newState
+        });
         return;
       }
 
@@ -275,6 +344,7 @@ class NotificationManager {
   ): boolean {
     // Check global notification setting
     if (!notificationSettingsManager.isNotificationEnabled()) {
+      this.log('skip test notification: global setting disabled', { type, agentKind });
       return false;
     }
     const agentConfig = AGENT_NOTIFICATION_CONFIGS[agentKind] ?? AGENT_NOTIFICATION_CONFIGS.claude;
@@ -293,6 +363,11 @@ class NotificationManager {
   ): boolean {
     // Check if Notification is supported
     if (!Notification.isSupported()) {
+      this.log('skip notification: Electron Notification unsupported', {
+        processId,
+        agentKind: agentConfig.kind,
+        type
+      });
       return false;
     }
 
@@ -323,6 +398,13 @@ class NotificationManager {
     });
 
     notification.show();
+    this.log('shown notification', {
+      processId,
+      agentKind: agentConfig.kind,
+      type,
+      title,
+      body
+    });
     return true;
   }
 

@@ -119,6 +119,7 @@ export function Terminal({
   const initialAgentNotificationConfigRef = useRef(
     getAgentNotificationConfigForCommand(initialCommand)
   );
+  const pendingInputLineRef = useRef('');
   const initialCommandSentRef = useRef(false);
   // Guards startShell against concurrent runs (StrictMode double-invoke,
   // fast worktree switches): a stale run must not register listeners, or
@@ -166,13 +167,25 @@ export function Terminal({
 
       if (!agentConfig) {
         const result = await window.electronAPI.shell.getForegroundProcess(currentProcessId);
+        console.log('[AgentNotification] foreground process for manual enable', {
+          processId: currentProcessId,
+          command: result?.command
+        });
         agentConfig = getAgentNotificationConfigForCommand(result?.command);
       }
 
       if (agentConfig) {
         // Enable notifications in main process
-        await window.electronAPI.claudeNotification.enable(currentProcessId, agentConfig.kind);
-        setNotificationsEnabled(true);
+        const enabled = await window.electronAPI.claudeNotification.enable(
+          currentProcessId,
+          agentConfig.kind
+        );
+        console.log('[AgentNotification] manual enable requested', {
+          processId: currentProcessId,
+          agentKind: agentConfig.kind,
+          enabled
+        });
+        setNotificationsEnabled(enabled);
       } else {
         toast({
           title: 'Agent not detected',
@@ -853,11 +866,21 @@ export function Terminal({
         await window.electronAPI.claudeNotification.disable(result.processId!);
 
         const initialAgentConfig = initialAgentNotificationConfigRef.current;
+        console.log('[AgentNotification] initial agent config', {
+          processId: result.processId!,
+          initialCommand: initialCommandRef.current,
+          agentKind: initialAgentConfig?.kind
+        });
         if (initialAgentConfig) {
           const enabled = await window.electronAPI.claudeNotification.enable(
             result.processId!,
             initialAgentConfig.kind
           );
+          console.log('[AgentNotification] auto enable requested', {
+            processId: result.processId!,
+            agentKind: initialAgentConfig.kind,
+            enabled
+          });
           setNotificationsEnabled(enabled);
         }
 
@@ -920,14 +943,39 @@ export function Terminal({
         const disposable = terminal.onData((data) => {
           if (processIdRef.current) {
             backend.shell.write(processIdRef.current, data);
-            if (data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n')) {
+            const submitsLine =
+              data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n');
+            if (submitsLine) {
               scheduleSoftEnterRefresh();
             }
             // Only mark user input when user presses ENTER (submits to the agent)
             // This prevents resetting notification flag on every keystroke
             // which would cause duplicate notifications while typing
-            if (data === '\r' || data === '\n' || data.includes('\r') || data.includes('\n')) {
+            if (submitsLine) {
+              const submittedCommand = pendingInputLineRef.current.trim();
+              const agentConfig = getAgentNotificationConfigForCommand(submittedCommand);
+              if (agentConfig) {
+                const processId = processIdRef.current;
+                window.electronAPI.claudeNotification
+                  .enable(processId, agentConfig.kind)
+                  .then((enabled) => {
+                    console.log('[AgentNotification] manual command auto enable requested', {
+                      processId,
+                      command: submittedCommand,
+                      agentKind: agentConfig.kind,
+                      enabled
+                    });
+                    if (enabled) {
+                      setNotificationsEnabled(true);
+                    }
+                  });
+              }
               window.electronAPI.claudeNotification.markUserInput(processIdRef.current);
+              pendingInputLineRef.current = '';
+            } else if (data === '\u007f' || data === '\b') {
+              pendingInputLineRef.current = pendingInputLineRef.current.slice(0, -1);
+            } else if (!data.includes('\u001b')) {
+              pendingInputLineRef.current += data;
             }
           }
         });
@@ -981,6 +1029,10 @@ export function Terminal({
           await backend.shell.write(result.processId!, `${initialCommandRef.current}\r`);
           if (initialAgentNotificationConfigRef.current) {
             await window.electronAPI.claudeNotification.markUserInput(result.processId!);
+            console.log('[AgentNotification] marked initial command as input', {
+              processId: result.processId!,
+              agentKind: initialAgentNotificationConfigRef.current.kind
+            });
           }
           initialCommandSentRef.current = true;
         }
