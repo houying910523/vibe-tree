@@ -26,9 +26,27 @@ import { backend } from '@/services/backend';
 
 const SOFT_ENTER_SEQUENCE = '\u001b[13;2u';
 const SOFT_ENTER_COMMAND_PATTERN = /(^|[\\/\s])(codex|pi)(?=$|[\\/\s])|pi-coding-agent/i;
+const MOUSE_REPORTING_MODES = new Set(['9', '1000', '1002', '1003', '1005', '1006', '1015']);
+const DEC_PRIVATE_MODE_SEQUENCE = /\u001b\[\?([0-9;]*)([hl])/g;
 
 const DEFAULT_TERMINAL_FONT_FAMILY =
   '"Meslo LG S for Powerline", Menlo, Monaco, "SF Mono", Consolas, "Cascadia Mono", "Courier New", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei UI", "WenQuanYi Micro Hei", "Apple Color Emoji", "Segoe UI Emoji", monospace';
+
+function stripMouseReportingEnableSequences(data: string): string {
+  return data.replace(DEC_PRIVATE_MODE_SEQUENCE, (sequence, modes: string, command: string) => {
+    if (command !== 'h') return sequence;
+
+    const remainingModes = modes
+      .split(';')
+      .filter((mode) => mode && !MOUSE_REPORTING_MODES.has(mode));
+
+    return remainingModes.length > 0 ? `\u001b[?${remainingModes.join(';')}${command}` : '';
+  });
+}
+
+function isSoftEnterCommand(command: string | null | undefined): boolean {
+  return Boolean(command && SOFT_ENTER_COMMAND_PATTERN.test(command));
+}
 
 interface TerminalProps {
   worktreePath: string;
@@ -134,6 +152,7 @@ export function Terminal({
   const [terminalSettings, setTerminalSettings] = useState<TerminalSettings | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const softEnterEnabledRef = useRef(false);
+  const disableMouseReportingRef = useRef(isSoftEnterCommand(initialCommand));
   const softEnterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const softEnterRefreshInFlightRef = useRef<Promise<void> | null>(null);
   // Which pane owns the keyboard: with several terminals in a grid this is
@@ -256,16 +275,12 @@ export function Terminal({
     [handleSearch]
   );
 
-  const isSoftEnterCommand = useCallback((command: string | null | undefined) => {
-    if (!command) return false;
-    return SOFT_ENTER_COMMAND_PATTERN.test(command.toLowerCase());
-  }, []);
-
   const refreshSoftEnterSupport = useCallback(
     async (force = false) => {
       const processId = processIdRef.current;
       if (!processId) {
         softEnterEnabledRef.current = false;
+        disableMouseReportingRef.current = false;
         return;
       }
 
@@ -279,10 +294,13 @@ export function Terminal({
           if (processIdRef.current !== processId) {
             return;
           }
-          softEnterEnabledRef.current = isSoftEnterCommand(result?.command);
+          const isAgentCommand = isSoftEnterCommand(result?.command);
+          softEnterEnabledRef.current = isAgentCommand;
+          disableMouseReportingRef.current = isAgentCommand;
         } catch {
           if (processIdRef.current === processId) {
             softEnterEnabledRef.current = false;
+            disableMouseReportingRef.current = false;
           }
         }
       })();
@@ -293,7 +311,7 @@ export function Terminal({
         softEnterRefreshInFlightRef.current = null;
       }
     },
-    [isSoftEnterCommand]
+    []
   );
 
   const scheduleSoftEnterRefresh = useCallback(
@@ -964,6 +982,9 @@ export function Terminal({
             if (submitsLine) {
               const submittedCommand = pendingInputLineRef.current.trim();
               const agentConfig = getAgentNotificationConfigForCommand(submittedCommand);
+              if (isSoftEnterCommand(submittedCommand)) {
+                disableMouseReportingRef.current = true;
+              }
               if (agentConfig) {
                 const processId = processIdRef.current;
                 window.electronAPI.claudeNotification
@@ -992,7 +1013,9 @@ export function Terminal({
 
         // Set up output listener
         const removeOutputListener = backend.shell.onOutput(result.processId!, (data) => {
-          terminal.write(data);
+          terminal.write(
+            disableMouseReportingRef.current ? stripMouseReportingEnableSequences(data) : data
+          );
           scheduleSoftEnterRefresh();
           // Note: Notification logic is now handled in main process
           // Main process receives output directly and detects Claude state
@@ -1004,6 +1027,7 @@ export function Terminal({
           const exitedProcessId = processIdRef.current;
           processIdRef.current = '';
           softEnterEnabledRef.current = false;
+          disableMouseReportingRef.current = false;
 
           // Clean up scheduler state when PTY exits
           if (exitedProcessId) {

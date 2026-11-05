@@ -13,6 +13,7 @@ vi.mock('@xterm/xterm', () => {
     cols = 80;
     rows = 24;
     options: Record<string, unknown> = {};
+    writes: string[] = [];
     element = document.createElement('div');
     textarea = document.createElement('textarea');
     private dataHandlers: Array<(data: string) => void> = [];
@@ -59,6 +60,10 @@ vi.mock('@xterm/xterm', () => {
       };
     }
 
+    dispatchData(data: string) {
+      this.dataHandlers.forEach((handler) => handler(data));
+    }
+
     onBell(): Disposable {
       return { dispose: () => {} };
     }
@@ -72,7 +77,9 @@ vi.mock('@xterm/xterm', () => {
     focus() {}
     blur() {}
     clear() {}
-    write() {}
+    write(data: string) {
+      this.writes.push(data);
+    }
     writeln() {}
     dispose() {}
   }
@@ -133,6 +140,8 @@ import { Terminal } from './Terminal';
 interface FakeTerminalStatics {
   instances: Array<{
     options: Record<string, unknown>;
+    writes: string[];
+    dispatchData: (data: string) => void;
     dispatchKeyEvent: (
       type: 'keydown' | 'keypress',
       overrides: Partial<KeyboardEvent>
@@ -179,6 +188,22 @@ describe('Terminal soft enter', () => {
     await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
 
     expect(FakeTerminal.instances[0].options.macOptionClickForcesSelection).toBe(true);
+  });
+
+  it('keeps Codex mouse reporting from disabling normal text selection', async () => {
+    render(<Terminal worktreePath="/tmp/repo" terminalId="term-1" isVisible />);
+
+    await waitFor(() => expect(shellStart).toHaveBeenCalledTimes(1));
+
+    const terminal = FakeTerminal.instances[0];
+    terminal.dispatchData('codex');
+    terminal.dispatchData('\r');
+
+    act(() => {
+      outputListeners.get('pid-1')?.('\u001b[?1;1000;1002;1006hready');
+    });
+
+    expect(terminal.writes).toContain('\u001b[?1hready');
   });
 
   it('sends a soft-enter sequence once Pi or Codex becomes the foreground app', async () => {
