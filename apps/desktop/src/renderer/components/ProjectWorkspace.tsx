@@ -37,6 +37,7 @@ export function ProjectWorkspace({ projectId, theme, sidebarCollapsed }: Project
           worktreePath={project.selectedWorktree}
           projectId={projectId}
           theme={theme}
+          isProjectRootWorktree={project.selectedWorktree === project.path}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">

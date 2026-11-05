@@ -36,6 +36,15 @@ describe('RightPaneView', () => {
     expect(mocks.getAgentCommandForWorktree).toHaveBeenCalledWith('/repo/feature');
   });
 
+  it('defaults the project root worktree Agent tab to codex', async () => {
+    mocks.getAgentCommandForWorktree.mockResolvedValue(undefined);
+
+    render(<RightPaneView worktreePath="/repo" isProjectRootWorktree />);
+
+    expect(await screen.findByTestId('agent-grid')).toHaveTextContent('codex');
+    expect(screen.getByRole('tab', { name: /agent/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('does not mount a terminal before the worktree config is loaded', () => {
     mocks.getAgentCommandForWorktree.mockReturnValue(new Promise(() => {}));
 

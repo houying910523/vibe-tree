@@ -10,9 +10,15 @@ interface RightPaneViewProps {
   worktreePath: string;
   projectId?: string;
   theme?: 'light' | 'dark';
+  isProjectRootWorktree?: boolean;
 }
 
-export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewProps) {
+export function RightPaneView({
+  worktreePath,
+  projectId,
+  theme,
+  isProjectRootWorktree
+}: RightPaneViewProps) {
   const [activeTab, setActiveTab] = useState<RightPaneTab>('terminal');
   const [agentCommandState, setAgentCommandState] = useState<{
     worktreePath: string;
@@ -50,14 +56,15 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
       .then((command) => {
         if (cancelled) return;
 
-        setAgentCommandState({ worktreePath, loaded: true, command });
-        if (command && agentTabOpenedForWorktree.current !== worktreePath) {
+        const agentCommand = command ?? (isProjectRootWorktree ? 'codex' : undefined);
+        setAgentCommandState({ worktreePath, loaded: true, command: agentCommand });
+        if (agentCommand && agentTabOpenedForWorktree.current !== worktreePath) {
           agentTabOpenedForWorktree.current = worktreePath;
           setActiveTab('agent');
           return;
         }
 
-        if (!command) {
+        if (!agentCommand) {
           setActiveTab((tab) => (tab === 'agent' ? 'terminal' : tab));
         }
       })
@@ -71,7 +78,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
     return () => {
       cancelled = true;
     };
-  }, [worktreePath]);
+  }, [isProjectRootWorktree, worktreePath]);
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
