@@ -28,12 +28,58 @@ const GIT_FALLBACK_PATHS = [
 ];
 
 let resolvedGitCommand: string | null = null;
+let gitWriteQueue = Promise.resolve();
+
+function disablesOptionalLocks(args: string[]): boolean {
+  return args[0] === 'status' || args[0] === 'diff';
+}
+
+function mutatesRepository(args: string[]): boolean {
+  const command = args[0];
+  if (command === 'worktree') {
+    return args[1] !== 'list';
+  }
+
+  return [
+    'add',
+    'am',
+    'apply',
+    'branch',
+    'checkout',
+    'cherry-pick',
+    'clean',
+    'commit',
+    'merge',
+    'mv',
+    'pull',
+    'rebase',
+    'reset',
+    'restore',
+    'revert',
+    'rm',
+    'stash',
+    'switch'
+  ].includes(command);
+}
+
+async function enqueueGitWrite<T>(task: () => Promise<T>): Promise<T> {
+  const run = gitWriteQueue.then(task, task);
+  gitWriteQueue = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
 
 function runGit(gitCommand: string, args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(gitCommand, args, {
       cwd,
-      env: { ...process.env, PATH: process.env.PATH || '/usr/bin:/bin:/usr/local/bin' }
+      env: {
+        ...process.env,
+        PATH: process.env.PATH || '/usr/bin:/bin:/usr/local/bin',
+        ...(disablesOptionalLocks(args) ? { GIT_OPTIONAL_LOCKS: '0' } : {})
+      }
     });
 
     let stdout = '';
@@ -62,28 +108,32 @@ function runGit(gitCommand: string, args: string[], cwd: string): Promise<string
 }
 
 export async function executeGitCommand(args: string[], cwd: string): Promise<string> {
-  const candidates = resolvedGitCommand ? [resolvedGitCommand] : ['git', ...GIT_FALLBACK_PATHS];
+  const run = async () => {
+    const candidates = resolvedGitCommand ? [resolvedGitCommand] : ['git', ...GIT_FALLBACK_PATHS];
 
-  let lastError: unknown;
-  for (const candidate of candidates) {
-    try {
-      const output = await runGit(candidate, args, cwd);
-      resolvedGitCommand = candidate;
-      return output;
-    } catch (error) {
-      lastError = error;
-      const code = (error as NodeJS.ErrnoException).code;
-      // Only fall through to the next location when the binary is missing;
-      // a real git failure (bad args, not a repo) must surface immediately
-      if (code !== 'ENOENT') {
-        throw error;
+    let lastError: unknown;
+    for (const candidate of candidates) {
+      try {
+        const output = await runGit(candidate, args, cwd);
+        resolvedGitCommand = candidate;
+        return output;
+      } catch (error) {
+        lastError = error;
+        const code = (error as NodeJS.ErrnoException).code;
+        // Only fall through to the next location when the binary is missing;
+        // a real git failure (bad args, not a repo) must surface immediately
+        if (code !== 'ENOENT') {
+          throw error;
+        }
       }
     }
-  }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('git executable not found. Install git or add it to PATH.');
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('git executable not found. Install git or add it to PATH.');
+  };
+
+  return mutatesRepository(args) ? enqueueGitWrite(run) : run();
 }
 
 /**

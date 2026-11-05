@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -109,5 +109,63 @@ describe('worktree branch operations', () => {
       branch: 'async-hook',
       hook: { name: 'post-create', ok: true, exitCode: 0 }
     });
+  });
+});
+
+describe('executeGitCommand locking', () => {
+  let tmpDir: string;
+  let oldPath: string | undefined;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibetree-git-locking-'));
+    oldPath = process.env.PATH;
+  });
+
+  afterEach(() => {
+    process.env.PATH = oldPath;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function importWithFakeGit(script: string) {
+    const binDir = path.join(tmpDir, 'bin');
+    fs.mkdirSync(binDir);
+    const gitPath = path.join(binDir, 'git');
+    fs.writeFileSync(gitPath, script);
+    fs.chmodSync(gitPath, 0o755);
+    process.env.PATH = [binDir, oldPath].filter(Boolean).join(path.delimiter);
+    vi.resetModules();
+    return import('./git');
+  }
+
+  it('runs status without optional git locks', async () => {
+    const markerPath = path.join(tmpDir, 'optional-locks');
+    const { executeGitCommand } = await importWithFakeGit(`#!/bin/sh
+printf '%s' "$GIT_OPTIONAL_LOCKS" > '${markerPath}'
+`);
+
+    await executeGitCommand(['status', '--porcelain=v1'], tmpDir);
+
+    expect(fs.readFileSync(markerPath, 'utf8')).toBe('0');
+  });
+
+  it('serializes mutating git commands', async () => {
+    const lockPath = path.join(tmpDir, 'fake-git.lock');
+    const racePath = path.join(tmpDir, 'race');
+    const { executeGitCommand } = await importWithFakeGit(`#!/bin/sh
+if [ -e '${lockPath}' ]; then
+  printf race > '${racePath}'
+  exit 1
+fi
+touch '${lockPath}'
+sleep 0.1
+rm '${lockPath}'
+`);
+
+    await Promise.all([
+      executeGitCommand(['merge', 'refs/heads/a'], tmpDir),
+      executeGitCommand(['merge', 'refs/heads/b'], tmpDir)
+    ]);
+
+    expect(fs.existsSync(racePath)).toBe(false);
   });
 });
