@@ -7,6 +7,7 @@ import { WorktreePanelList } from './worktree-panel/WorktreePanelList';
 import type { Worktree } from './worktree-panel/types';
 import { useWorktreePanelState } from './worktree-panel/useWorktreePanelState';
 import { useWorktreePanelWidth } from './worktree-panel/useWorktreePanelWidth';
+import {EventType, onEvent} from "@/event";
 
 interface WorktreePanelProps {
   projectPath: string;
@@ -35,11 +36,7 @@ export function WorktreePanel({
     toast
   });
 
-  useEffect(() => {
-    const openDialog = () => setShowNewBranchDialog(true);
-    window.addEventListener('vibetree:new-worktree', openDialog);
-    return () => window.removeEventListener('vibetree:new-worktree', openDialog);
-  }, []);
+  useEffect(() => onEvent(EventType.NEW_WORKTREE, () => setShowNewBranchDialog(true)), []);
 
   const handleDeleteWorktree = useCallback(
     (worktree: Worktree) => {

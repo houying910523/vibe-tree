@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { TerminalGrid } from './TerminalGrid';
-import { GitDiffView } from './GitDiffView';
-import { Bot, Terminal, GitBranch } from 'lucide-react';
-import { getAgentCommandForWorktree, type AgentCommand } from '@/services/worktreeAgentCommands';
-import { isRightPaneTab, RIGHT_PANE_TAB_SHORTCUT_EVENT, type RightPaneTab } from './rightPaneTabs';
+import {useEffect, useRef, useState} from 'react';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from './ui/tabs';
+import {TerminalGrid} from './TerminalGrid';
+import {GitDiffView} from './GitDiffView';
+import {Bot, GitBranch, Terminal} from 'lucide-react';
+import {type AgentCommand, getAgentCommandForWorktree} from '@/services/worktreeAgentCommands';
+import {isRightPaneTab, type RightPaneTab} from './rightPaneTabs';
+import {EventType, onEvent} from "@/event";
 
 interface RightPaneViewProps {
   worktreePath: string;
@@ -34,18 +35,25 @@ export function RightPaneView({
   // Fired by the Worktree menu accelerator; only the visible pane is mounted
   useEffect(() => {
     const toggle = () => setActiveTab((tab) => (tab === 'terminal' ? 'git-diff' : 'terminal'));
-    window.addEventListener('vibetree:toggle-view', toggle);
-    return () => window.removeEventListener('vibetree:toggle-view', toggle);
+    return onEvent(EventType.TOGGLE_VIEW, toggle)
   }, []);
 
   useEffect(() => {
-    const selectTab = (event: Event) => {
-      const tab = (event as CustomEvent<string>).detail;
-      if (isRightPaneTab(tab)) setActiveTab(tab);
-    };
-
-    window.addEventListener(RIGHT_PANE_TAB_SHORTCUT_EVENT, selectTab);
-    return () => window.removeEventListener(RIGHT_PANE_TAB_SHORTCUT_EVENT, selectTab);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey) {
+        return
+      }
+      event.preventDefault()
+      const indexTabMapping: Record<string, RightPaneTab> = {
+        '1': 'agent',
+        '2': 'terminal',
+        '3': 'git-diff'
+      }
+      if (indexTabMapping[event.key]) {
+        setActiveTab(indexTabMapping[event.key])
+      }
+    }
+    return onEvent('keydown', onKeyDown)
   }, []);
 
   useEffect(() => {

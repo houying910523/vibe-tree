@@ -31,11 +31,6 @@ Object.defineProperty(window, 'electronAPI', {
     window: {
       toggleMaximized: vi.fn(() => Promise.resolve())
     },
-    schedulerHistory: {
-      get: vi.fn(() => Promise.resolve([])),
-      add: vi.fn(() => Promise.resolve()),
-      clear: vi.fn(() => Promise.resolve())
-    },
     notification: {
       getSettings: vi.fn(() => Promise.resolve({ enabled: true })),
       updateSettings: vi.fn(() => Promise.resolve()),

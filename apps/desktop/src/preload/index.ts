@@ -72,12 +72,6 @@ const api = {
       return () => ipcRenderer.removeListener('terminal-settings:changed', listener);
     }
   },
-  schedulerHistory: {
-    get: () => ipcRenderer.invoke('scheduler-history:get'),
-    add: (command: string, delayMs: number, repeat: boolean) =>
-      ipcRenderer.invoke('scheduler-history:add', command, delayMs, repeat),
-    clear: () => ipcRenderer.invoke('scheduler-history:clear')
-  },
   menu: {
     onOpenTerminalSettings: (callback: () => void) => {
       const listener = () => callback();

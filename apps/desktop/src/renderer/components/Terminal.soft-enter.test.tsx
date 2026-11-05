@@ -109,7 +109,6 @@ vi.mock('@xterm/addon-unicode11', () => ({
 }));
 vi.mock('@xterm/addon-search', () => ({ SearchAddon: class {} }));
 vi.mock('@xterm/xterm/css/xterm.css', () => ({}));
-vi.mock('./SchedulerDialog', () => ({ SchedulerDialog: () => null }));
 
 const { shellWrite, shellStart, shellGetForegroundProcess, outputListeners } = vi.hoisted(() => {
   const outputListeners = new Map<string, (data: string) => void>();

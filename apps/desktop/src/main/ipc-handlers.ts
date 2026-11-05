@@ -2,7 +2,6 @@ import { ipcMain, dialog, nativeTheme, shell, BrowserWindow } from 'electron';
 import { terminalSettingsManager } from './terminal-settings';
 import { appSettingsManager } from './app-settings';
 import { recentProjectsManager } from './recent-projects';
-import { schedulerHistoryManager } from './scheduler-history';
 import { notificationSettingsManager } from './notification-settings';
 import { notificationManager } from './notification-manager';
 import { createMenu } from './menu';
@@ -146,22 +145,6 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
 
   ipcMain.handle('terminal-settings:get-fonts', () => {
     return terminalSettingsManager.getAvailableFonts();
-  });
-
-  // Scheduler history handlers
-  ipcMain.handle('scheduler-history:get', () => {
-    return schedulerHistoryManager.getHistory();
-  });
-
-  ipcMain.handle(
-    'scheduler-history:add',
-    (_, command: string, delayMs: number, repeat: boolean) => {
-      schedulerHistoryManager.addHistoryEntry(command, delayMs, repeat);
-    }
-  );
-
-  ipcMain.handle('scheduler-history:clear', () => {
-    schedulerHistoryManager.clearHistory();
   });
 
   // Open external links

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, Clock, GitBranch, Trash2 } from 'lucide-react';
-import { activeSchedulersByWorktree, SCHEDULER_STATE_CHANGED_EVENT } from '../Terminal';
+import { Check, ChevronDown, GitBranch, Trash2 } from 'lucide-react';
 import { backend } from '@/services/backend';
 import {
   DropdownMenu,
@@ -40,7 +39,6 @@ export function WorktreePanelList({
   const { toast } = useToast();
   const [changeCounts, setChangeCounts] = useState<Record<string, number>>({});
   const [worktreeSessionCounts, setWorktreeSessionCounts] = useState<Record<string, number>>({});
-  const [worktreesWithSchedulers, setWorktreesWithSchedulers] = useState<Set<string>>(new Set());
   const [operatingWorktree, setOperatingWorktree] = useState<string | null>(null);
   const sortedWorktrees = useMemo(() => sortWorktrees(worktrees), [worktrees]);
 
@@ -93,18 +91,6 @@ export function WorktreePanelList({
     };
   }, []);
 
-  useEffect(() => {
-    const updateSchedulerStatus = () => {
-      setWorktreesWithSchedulers(new Set(activeSchedulersByWorktree.keys()));
-    };
-
-    updateSchedulerStatus();
-    window.addEventListener(SCHEDULER_STATE_CHANGED_EVENT, updateSchedulerStatus);
-    return () => {
-      window.removeEventListener(SCHEDULER_STATE_CHANGED_EVENT, updateSchedulerStatus);
-    };
-  }, []);
-
   const handleWorktreeGitOperation = useCallback(
     async (worktree: Worktree, operation: 'merge' | 'rebase') => {
       setOperatingWorktree(worktree.path);
@@ -145,9 +131,6 @@ export function WorktreePanelList({
             canShowActions ? 'group-hover:opacity-0' : ''
           }`}
         >
-          {worktreesWithSchedulers.has(worktree.path) && (
-            <Clock className="h-3 w-3 opacity-60" aria-label="Scheduler active" />
-          )}
           {worktreeSessionCounts[worktree.path] > 0 && (
             <span
               className="w-1.5 h-1.5 rounded-full bg-green-500"
@@ -169,7 +152,7 @@ export function WorktreePanelList({
         </span>
       );
     },
-    [changeCounts, worktreeSessionCounts, worktreesWithSchedulers]
+    [changeCounts, worktreeSessionCounts]
   );
 
   return (

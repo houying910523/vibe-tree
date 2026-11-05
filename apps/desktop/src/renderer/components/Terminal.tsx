@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from './ui/dropdown-menu';
-import { Code2, Columns2, Rows2, X, Search, Clock, Bell, BellOff } from 'lucide-react';
+import { Code2, Columns2, Rows2, X, Search, Bell, BellOff } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import {
   escapeShellPath,
@@ -21,7 +21,6 @@ import {
 } from '@vibetree/core';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalSettings } from '@/types/terminal-settings';
-import { SchedulerDialog, type SchedulerConfig } from './SchedulerDialog';
 import { backend } from '@/services/backend';
 import { getRightPaneTabForShortcut } from './rightPaneTabs';
 
@@ -92,55 +91,6 @@ interface TerminalProps {
 // Cache for terminal states per worktree
 const terminalStateCache = new Map<string, string>();
 
-// Cache for scheduler states per process ID
-interface SchedulerState {
-  config: SchedulerConfig;
-  isRunning: boolean;
-  timeoutId: NodeJS.Timeout | null;
-}
-const schedulerStateCache = new Map<string, SchedulerState>();
-
-// Export the cache for external access
-export { schedulerStateCache };
-
-// Custom event for scheduler state changes
-export const SCHEDULER_STATE_CHANGED_EVENT = 'scheduler-state-changed';
-
-// Track active schedulers by worktree path
-const activeSchedulersByWorktree = new Map<string, Set<string>>();
-
-// Export for external access
-export { activeSchedulersByWorktree };
-
-// Helper to broadcast scheduler state changes with worktree path
-const broadcastSchedulerStateChange = (
-  worktreePath: string,
-  processId: string,
-  isRunning: boolean
-) => {
-  // Update the worktree-based tracking
-  if (isRunning) {
-    if (!activeSchedulersByWorktree.has(worktreePath)) {
-      activeSchedulersByWorktree.set(worktreePath, new Set());
-    }
-    activeSchedulersByWorktree.get(worktreePath)!.add(processId);
-  } else {
-    const schedulers = activeSchedulersByWorktree.get(worktreePath);
-    if (schedulers) {
-      schedulers.delete(processId);
-      if (schedulers.size === 0) {
-        activeSchedulersByWorktree.delete(worktreePath);
-      }
-    }
-  }
-
-  window.dispatchEvent(
-    new CustomEvent(SCHEDULER_STATE_CHANGED_EVENT, {
-      detail: { worktreePath, processId, isRunning }
-    })
-  );
-};
-
 export function Terminal({
   worktreePath,
   theme = 'dark',
@@ -197,14 +147,6 @@ export function Terminal({
   }, []);
   const { toast } = useToast();
 
-  // Scheduler state - only UI state in component, actual scheduler state in cache
-  const [schedulerDialogOpen, setSchedulerDialogOpen] = useState(false);
-  // Force re-render when scheduler state changes
-  const [, setSchedulerUpdateTrigger] = useState(0);
-  const commandInProgressRef = useRef(false);
-  // AbortController to cancel pending scheduler promises on unmount
-  const schedulerAbortControllerRef = useRef<AbortController>(new AbortController());
-
   // Track process ID in state for proper effect dependencies
   const [currentProcessId, setCurrentProcessId] = useState<string>('');
 
@@ -252,35 +194,6 @@ export function Terminal({
       }
     }
   }, [currentProcessId, notificationsEnabled, toast]);
-
-  // Helper functions to work with scheduler cache
-  const getSchedulerState = useCallback(() => {
-    if (!processIdRef.current) return null;
-    return schedulerStateCache.get(processIdRef.current) || null;
-  }, []);
-
-  const updateSchedulerState = useCallback(
-    (update: Partial<SchedulerState> | null) => {
-      if (!processIdRef.current) return;
-
-      const isRunning = update?.isRunning ?? false;
-
-      if (update === null) {
-        schedulerStateCache.delete(processIdRef.current);
-      } else {
-        const current = schedulerStateCache.get(processIdRef.current);
-        schedulerStateCache.set(processIdRef.current, {
-          ...current,
-          ...update
-        } as SchedulerState);
-      }
-      // Trigger re-render
-      setSchedulerUpdateTrigger((prev) => prev + 1);
-      // Broadcast change for external listeners (e.g., WorktreePanel)
-      broadcastSchedulerStateChange(worktreePath, processIdRef.current, isRunning);
-    },
-    [worktreePath]
-  );
 
   // Search functionality
   const handleSearch = useCallback((query: string, direction: 'next' | 'previous' = 'next') => {
@@ -360,177 +273,6 @@ export function Terminal({
     },
     [refreshSoftEnterSupport]
   );
-
-  // Scheduler functionality
-  const stopScheduler = useCallback(async () => {
-    const schedulerState = getSchedulerState();
-    if (schedulerState?.timeoutId) {
-      clearTimeout(schedulerState.timeoutId);
-    }
-
-    // Wait for any in-progress command to complete naturally instead of cancelling it
-    // This prevents partial commands from appearing in the terminal
-    while (commandInProgressRef.current) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-
-    // Additional small delay to ensure the shell has processed the ENTER key
-    // and the command output has been fully rendered in the terminal
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Clear from cache when explicitly stopped
-    updateSchedulerState(null);
-  }, [getSchedulerState, updateSchedulerState]);
-
-  const sendScheduledCommand = useCallback(
-    (command: string, delayMs: number): Promise<boolean> => {
-      if (!processIdRef.current || !terminal) return Promise.resolve(false);
-
-      // Prevent overlapping command executions by checking if one is already in progress
-      if (commandInProgressRef.current) {
-        console.warn('Command already in progress, skipping overlapping execution');
-        return Promise.resolve(false);
-      }
-
-      commandInProgressRef.current = true;
-
-      // Simulate typing through xterm terminal instance
-      // This ensures the input goes through the same path as real user typing,
-      // which is critical for interactive apps like Claude Code that process
-      // input character-by-character in raw terminal mode
-
-      return new Promise<boolean>((resolve) => {
-        // Type each character with a small delay to simulate realistic typing
-        let charIndex = 0;
-        const typeNextChar = () => {
-          if (charIndex < command.length) {
-            const char = command[charIndex];
-            // Send to PTY
-            backend.shell.write(processIdRef.current, char);
-            charIndex++;
-            setTimeout(typeNextChar, 10); // 10ms between characters
-          } else {
-            // After all characters, wait before sending ENTER key (\r)
-            // Use min(delayMs/2, 1000) to ensure we don't wait too long for short intervals
-            // but also don't exceed 1 second for long intervals
-            const enterKeyDelay = Math.min(delayMs / 2, 1000);
-            setTimeout(() => {
-              backend.shell.write(processIdRef.current, '\r');
-              commandInProgressRef.current = false;
-              resolve(true);
-            }, enterKeyDelay);
-          }
-        };
-
-        typeNextChar();
-      });
-    },
-    [terminal]
-  );
-
-  const startScheduler = useCallback(
-    async (config: SchedulerConfig) => {
-      // Stop any existing scheduler
-      await stopScheduler();
-
-      if (config.repeat) {
-        // For repeat mode, use chained setTimeout to ensure each command completes
-        // before the next one starts. This prevents overlapping executions that
-        // cause gibberish input, especially after machine sleep/wake.
-        const scheduleNext = async (): Promise<void> => {
-          // Check if component unmounted (abort signal)
-          if (schedulerAbortControllerRef.current.signal.aborted) {
-            updateSchedulerState(null);
-            return;
-          }
-
-          // Wait for the delay interval
-          await new Promise<void>((resolve) => {
-            const timeoutId = setTimeout(resolve, config.delayMs);
-            // Update cache with timeout ID
-            updateSchedulerState({
-              config,
-              isRunning: true,
-              timeoutId
-            });
-          });
-
-          // Check again after delay - component may have unmounted during wait
-          if (schedulerAbortControllerRef.current.signal.aborted) {
-            updateSchedulerState(null);
-            return;
-          }
-
-          // Check if scheduler is still running before executing the command
-          // This prevents race conditions where stopScheduler() is called during the delay
-          const stateBeforeCommand = getSchedulerState();
-          if (!stateBeforeCommand?.isRunning) {
-            // Scheduler was stopped during the delay, clean up
-            updateSchedulerState(null);
-            return;
-          }
-
-          // Execute the command and wait for it to complete
-          await sendScheduledCommand(config.command, config.delayMs);
-
-          // Check if scheduler is still running after command execution
-          const currentState = getSchedulerState();
-          if (currentState?.isRunning) {
-            // Recursively schedule next execution
-            // This intentionally creates a promise chain that continues until stopped
-            return scheduleNext();
-          } else {
-            // For one-time mode or if stopped, clean up
-            updateSchedulerState(null);
-          }
-        };
-
-        // Start the chain and store the promise to allow proper cleanup
-        void scheduleNext();
-      } else {
-        // For one-time mode, use setTimeout
-        const timeoutId = setTimeout(async () => {
-          await sendScheduledCommand(config.command, config.delayMs);
-          updateSchedulerState(null);
-        }, config.delayMs);
-
-        // Update cache with new state
-        updateSchedulerState({
-          config,
-          isRunning: true,
-          timeoutId
-        });
-      }
-
-      setSchedulerDialogOpen(false);
-    },
-    [stopScheduler, sendScheduledCommand, getSchedulerState, updateSchedulerState]
-  );
-
-  const handleSchedulerStop = useCallback(async () => {
-    await stopScheduler();
-  }, [stopScheduler]);
-
-  // Reset AbortController on mount and setup window unload cleanup
-  // This ensures:
-  // 1. AbortController is fresh on each mount (fixes project switch persistence)
-  // 2. Cleanup only happens on window close/Playwright teardown
-  useEffect(() => {
-    // Reset AbortController on each mount to handle project switches
-    // Without this reset, the aborted state persists when remounting the same component
-    schedulerAbortControllerRef.current = new AbortController();
-
-    // Setup cleanup for window close/Playwright teardown
-    const handleUnload = () => {
-      schedulerAbortControllerRef.current.abort();
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, []);
 
   // Load terminal settings and listen for changes
   useEffect(() => {
@@ -969,15 +711,6 @@ export function Terminal({
           setNotificationsEnabled(enabled);
         }
 
-        // Scheduler state is already in cache and will be read when needed
-        // No need to restore to component state - we read directly from cache
-        const cachedScheduler = schedulerStateCache.get(result.processId!);
-        if (cachedScheduler && cachedScheduler.isRunning) {
-          console.log(`Scheduler already running for process ${result.processId}`);
-          // Trigger a re-render to show scheduler UI
-          setSchedulerUpdateTrigger((prev) => prev + 1);
-        }
-
         // Handle terminal state
         if (result.isNew) {
           terminal.clear();
@@ -1082,22 +815,10 @@ export function Terminal({
         // Set up exit listener
         const removeExitListener = backend.shell.onExit(result.processId!, (code) => {
           terminal.writeln(`\r\n[Shell exited with code ${code}]`);
-          const exitedProcessId = processIdRef.current;
           processIdRef.current = '';
           softEnterEnabledRef.current = false;
           disableMouseReportingRef.current = false;
           terminalApplicationModesRef.current.clear();
-
-          // Clean up scheduler state when PTY exits
-          if (exitedProcessId) {
-            const cachedScheduler = schedulerStateCache.get(exitedProcessId);
-            if (cachedScheduler?.timeoutId) {
-              clearTimeout(cachedScheduler.timeoutId);
-            }
-            schedulerStateCache.delete(exitedProcessId);
-            // Broadcast the change (scheduler is no longer running)
-            broadcastSchedulerStateChange(worktreePath, exitedProcessId, false);
-          }
         });
 
         // Periodically save terminal state
@@ -1373,17 +1094,6 @@ export function Terminal({
           <Button
             size="icon"
             variant="ghost"
-            onClick={() => setSchedulerDialogOpen(true)}
-            title="Schedule Command"
-            className={`h-6 w-6 ${getSchedulerState()?.isRunning ? 'text-blue-500' : ''}`}
-          >
-            <Clock
-              className={`h-3.5 w-3.5 ${getSchedulerState()?.isRunning ? 'animate-pulse' : ''}`}
-            />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
             onClick={() => setSearchVisible(!searchVisible)}
             title="Search Terminal (Ctrl+F)"
             className="h-6 w-6"
@@ -1533,16 +1243,6 @@ export function Terminal({
       >
         <div ref={terminalRef} className="terminal-xterm-container h-full w-full" />
       </div>
-
-      {/* Scheduler Dialog */}
-      <SchedulerDialog
-        open={schedulerDialogOpen}
-        onClose={() => setSchedulerDialogOpen(false)}
-        onStart={startScheduler}
-        onStop={handleSchedulerStop}
-        isRunning={getSchedulerState()?.isRunning || false}
-        currentConfig={getSchedulerState()?.config || null}
-      />
     </div>
   );
 }

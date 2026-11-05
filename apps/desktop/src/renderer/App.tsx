@@ -1,19 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { TitleBar } from './components/TitleBar';
-import { ProjectSelector } from './components/ProjectSelector';
-import { ProjectWorkspace } from './components/ProjectWorkspace';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs';
-import { Button } from './components/ui/button';
-import { Toaster } from './components/ui/toaster';
-import { ProjectProvider, useProjects } from './contexts/ProjectContext';
-import { Plus, X } from 'lucide-react';
-import { GlobalTerminalSettings } from './components/GlobalTerminalSettings';
-import { GlobalSettings } from './components/GlobalSettings';
-import { OnboardingDialog } from './components/OnboardingDialog';
-import {
-  getRightPaneTabForShortcut,
-  RIGHT_PANE_TAB_SHORTCUT_EVENT
-} from './components/rightPaneTabs';
+import {useEffect, useRef, useState} from 'react';
+import {TitleBar} from './components/TitleBar';
+import {ProjectSelector} from './components/ProjectSelector';
+import {ProjectWorkspace} from './components/ProjectWorkspace';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from './components/ui/tabs';
+import {Button} from './components/ui/button';
+import {Toaster} from './components/ui/toaster';
+import {ProjectProvider, useProjects} from './contexts/ProjectContext';
+import {Plus, X} from 'lucide-react';
+import {GlobalTerminalSettings} from './components/GlobalTerminalSettings';
+import {GlobalSettings} from './components/GlobalSettings';
+import {OnboardingDialog} from './components/OnboardingDialog';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle
 } from './components/ui/dialog';
+import {EventType} from "@/event";
 
 function AppContent() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -46,10 +43,10 @@ function AppContent() {
     const menu = window.electronAPI.menu;
     const unsubscribes = [
       menu.onNewWorktree?.(() => {
-        window.dispatchEvent(new CustomEvent('vibetree:new-worktree'));
+        window.dispatchEvent(new CustomEvent(EventType.NEW_WORKTREE));
       }),
       menu.onToggleView?.(() => {
-        window.dispatchEvent(new CustomEvent('vibetree:toggle-view'));
+        window.dispatchEvent(new CustomEvent(EventType.TOGGLE_VIEW));
       }),
       menu.onToggleSidebar?.(() => {
         setSidebarCollapsed((collapsed) => !collapsed);
@@ -67,19 +64,6 @@ function AppContent() {
       })
     ];
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe?.());
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const tab = getRightPaneTabForShortcut(event);
-      if (!tab) return;
-
-      event.preventDefault();
-      window.dispatchEvent(new CustomEvent(RIGHT_PANE_TAB_SHORTCUT_EVENT, { detail: tab }));
-    };
-
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
   useEffect(() => {

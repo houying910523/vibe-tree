@@ -35,7 +35,7 @@ const steps = [
   {
     icon: TerminalSquare,
     title: 'Run your AI agent',
-    body: 'Each worktree opens a persistent terminal. Launch your agent there (for example, type "claude"), split terminals, schedule commands, and review diffs in the Changes tab. Sessions survive reloads and keep running in the background.'
+    body: 'Each worktree opens a persistent terminal. Launch your agent there (for example, type "claude"), split terminals, and review diffs in the Changes tab. Sessions survive reloads and keep running in the background.'
   },
   {
     icon: Keyboard,
