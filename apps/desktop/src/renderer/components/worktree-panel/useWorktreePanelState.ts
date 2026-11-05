@@ -6,7 +6,7 @@ import type { Worktree } from './types';
 type ToastFn = (props: {
   title: string;
   description: string;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'success' | 'destructive';
 }) => void;
 
 interface UseWorktreePanelStateArgs {
@@ -65,7 +65,8 @@ export function useWorktreePanelState({
       if (event.hook.ok) {
         toast({
           title: 'Setup hook complete',
-          description: `Setup hook finished for branch ${event.branch}`
+          description: `Setup hook finished for branch ${event.branch}`,
+          variant: 'success'
         });
         return;
       }
@@ -116,7 +117,8 @@ export function useWorktreePanelState({
               ? `Created worktree for branch ${result.branch} (setup hook ran)`
               : result.hookStarted
                 ? `Created worktree for branch ${result.branch} (setup hook running)`
-                : `Created worktree for branch ${result.branch}`
+                : `Created worktree for branch ${result.branch}`,
+            variant: 'success'
           });
         }
         loadWorktrees();
