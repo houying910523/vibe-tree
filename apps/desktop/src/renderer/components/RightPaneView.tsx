@@ -67,7 +67,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="border-b border-border/60 flex items-center h-10 px-2 flex-shrink-0">
           <TabsList className="h-7 bg-muted p-0.5 rounded-md gap-0.5">
             <TabsTrigger
@@ -94,7 +94,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
           </TabsList>
         </div>
 
-        <TabsContent value="terminal" className="flex-1 m-0 h-full">
+        <TabsContent value="terminal" className="flex-1 m-0 h-full min-h-0">
           {agentCommandLoaded && (
             <TerminalGrid
               worktreePath={worktreePath}
@@ -104,7 +104,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
           )}
         </TabsContent>
 
-        <TabsContent value="agent" className="flex-1 m-0 h-full">
+        <TabsContent value="agent" className="flex-1 m-0 h-full min-h-0">
           {agentCommandLoaded && (agentCommand || activeTab === 'agent') && (
             <TerminalGrid
               worktreePath={worktreePath}
@@ -116,7 +116,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
           )}
         </TabsContent>
 
-        <TabsContent value="git-diff" className="flex-1 m-0 h-full">
+        <TabsContent value="git-diff" className="flex-1 m-0 h-full min-h-0">
           <GitDiffView worktreePath={worktreePath} theme={theme} />
         </TabsContent>
       </Tabs>
