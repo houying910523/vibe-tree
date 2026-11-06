@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea, ScrollBar } from './ui/scroll-area';
 import { RefreshCw, FileText } from 'lucide-react';
 import { DiffView, DiffModeEnum } from '@git-diff-view/react';
 import '@git-diff-view/react/styles/diff-view.css';
@@ -16,6 +16,16 @@ interface GitFile {
 interface GitDiffViewProps {
   worktreePath: string;
   theme?: 'light' | 'dark';
+}
+
+function getFileDisplayPath(filePath: string, worktreePath: string) {
+  const normalizedFilePath = filePath.replace(/\\/g, '/');
+  const normalizedWorktreePath = worktreePath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const worktreePrefix = `${normalizedWorktreePath}/`;
+
+  return normalizedFilePath.startsWith(worktreePrefix)
+    ? normalizedFilePath.slice(worktreePrefix.length)
+    : filePath;
 }
 
 export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps) {
@@ -151,7 +161,7 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
             </h4>
           </div>
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+            <div className="w-max min-w-full p-2 space-y-1">
               {filteredFiles.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -161,7 +171,7 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
                 filteredFiles.map((file) => (
                   <div
                     key={file.path}
-                    className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50 ${
+                    className={`flex w-full items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50 ${
                       selectedFile === file.path ? 'bg-muted' : ''
                     }`}
                     onClick={() => setSelectedFile(file.path)}
@@ -169,13 +179,14 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
                     <span className="font-mono text-xs w-4 text-center">
                       {getStatusIcon(file.status)}
                     </span>
-                    <span className="text-sm truncate flex-1" title={file.path}>
-                      {file.path}
+                    <span className="text-sm whitespace-nowrap" title={file.path}>
+                      {getFileDisplayPath(file.path, worktreePath)}
                     </span>
                   </div>
                 ))
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
 
