@@ -176,7 +176,7 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
                     }`}
                     onClick={() => setSelectedFile(file.path)}
                   >
-                    <span className="font-mono text-xs w-3 text-center">
+                    <span className="font-mono text-xs w-1 text-center">
                       {getStatusIcon(file.status)}
                     </span>
                     <span className="text-sm whitespace-nowrap" title={file.path}>
