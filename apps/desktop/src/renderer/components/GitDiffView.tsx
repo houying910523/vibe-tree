@@ -171,12 +171,12 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
                 filteredFiles.map((file) => (
                   <div
                     key={file.path}
-                    className={`flex w-full items-center gap-2 px-1 py-1.5 rounded cursor-pointer hover:bg-muted/50 ${
+                    className={`flex w-full items-center gap-1 px-1 py-1.5 rounded cursor-pointer hover:bg-muted/50 ${
                       selectedFile === file.path ? 'bg-muted' : ''
                     }`}
                     onClick={() => setSelectedFile(file.path)}
                   >
-                    <span className="font-mono text-xs w-4 text-center">
+                    <span className="font-mono text-xs w-3 text-center">
                       {getStatusIcon(file.status)}
                     </span>
                     <span className="text-sm whitespace-nowrap" title={file.path}>
