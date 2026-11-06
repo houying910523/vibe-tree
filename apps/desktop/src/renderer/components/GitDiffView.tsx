@@ -161,7 +161,7 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
             </h4>
           </div>
           <ScrollArea className="flex-1">
-            <div className="w-max min-w-full p-2 space-y-1">
+            <div className="w-max min-w-full p-1 space-y-1">
               {filteredFiles.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -171,7 +171,7 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
                 filteredFiles.map((file) => (
                   <div
                     key={file.path}
-                    className={`flex w-full items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50 ${
+                    className={`flex w-full items-center gap-2 px-1 py-1.5 rounded cursor-pointer hover:bg-muted/50 ${
                       selectedFile === file.path ? 'bg-muted' : ''
                     }`}
                     onClick={() => setSelectedFile(file.path)}
