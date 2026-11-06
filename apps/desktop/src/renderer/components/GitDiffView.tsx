@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { Component, useEffect, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from './ui/button';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
 import { RefreshCw, FileText } from 'lucide-react';
@@ -26,6 +27,52 @@ function getFileDisplayPath(filePath: string, worktreePath: string) {
   return normalizedFilePath.startsWith(worktreePrefix)
     ? normalizedFilePath.slice(worktreePrefix.length)
     : filePath;
+}
+
+function isCombinedDiff(diffText: string) {
+  return /^diff --(?:cc|combined)\b/m.test(diffText) || /^@@@ /m.test(diffText);
+}
+
+function DiffFallback({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center text-muted-foreground">
+      <div className="text-center px-6">
+        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-xs mt-1">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+class DiffViewErrorBoundary extends Component<
+  { children: ReactNode; resetKey: string },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: { resetKey: string }) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <DiffFallback
+          title="Unable to render this diff"
+          message="The diff format is not supported by the viewer."
+        />
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps) {
@@ -218,36 +265,41 @@ export function GitDiffView({ worktreePath, theme = 'light' }: GitDiffViewProps)
               </div>
             </div>
           ) : !diffText ? (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No {viewMode} changes for this file</p>
-              </div>
-            </div>
+            <DiffFallback
+              title={`No ${viewMode} changes for this file`}
+              message="Select another file or refresh the git status."
+            />
+          ) : isCombinedDiff(diffText) ? (
+            <DiffFallback
+              title="Merge conflict diff is not supported"
+              message="Resolve the conflict, then refresh to view this file diff."
+            />
           ) : (
-            <ScrollArea className="flex-1 min-h-0 w-full">
-              <div className="p-4 w-full overflow-hidden">
-                <DiffView
-                  data={{
-                    oldFile: {
-                      fileName: selectedFile || '',
-                      content: null
-                    },
-                    newFile: {
-                      fileName: selectedFile || '',
-                      content: null
-                    },
-                    hunks: [diffText]
-                  }}
-                  diffViewMode={DiffModeEnum.Split}
-                  diffViewTheme={theme}
-                  diffViewHighlight={true}
-                  diffViewWrap={true}
-                  className="w-full"
-                  style={{ maxWidth: '100%', overflow: 'hidden' }}
-                />
-              </div>
-            </ScrollArea>
+            <DiffViewErrorBoundary resetKey={`${selectedFile}:${viewMode}:${diffText}`}>
+              <ScrollArea className="flex-1 min-h-0 w-full">
+                <div className="p-4 w-full overflow-hidden">
+                  <DiffView
+                    data={{
+                      oldFile: {
+                        fileName: selectedFile || '',
+                        content: null
+                      },
+                      newFile: {
+                        fileName: selectedFile || '',
+                        content: null
+                      },
+                      hunks: [diffText]
+                    }}
+                    diffViewMode={DiffModeEnum.Split}
+                    diffViewTheme={theme}
+                    diffViewHighlight={true}
+                    diffViewWrap={true}
+                    className="w-full"
+                    style={{ maxWidth: '100%', overflow: 'hidden' }}
+                  />
+                </div>
+              </ScrollArea>
+            </DiffViewErrorBoundary>
           )}
         </div>
       </div>
