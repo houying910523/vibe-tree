@@ -43,7 +43,6 @@ export function RightPaneView({
       if (!event.metaKey) {
         return
       }
-      event.preventDefault()
       const indexTabMapping: Record<string, RightPaneTab> = {
         '1': 'agent',
         '2': 'terminal',
@@ -51,6 +50,7 @@ export function RightPaneView({
       }
       if (indexTabMapping[event.key]) {
         setActiveTab(indexTabMapping[event.key])
+        event.preventDefault()
       }
     }
     return onEvent('keydown', onKeyDown)
