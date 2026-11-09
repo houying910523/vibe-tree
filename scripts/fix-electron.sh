@@ -4,10 +4,16 @@
 echo "🔧 Fixing Electron..."
 
 # Find the electron directory (works with any version)
-ELECTRON_DIR=$(find node_modules/.pnpm -maxdepth 2 -name "electron@*" -type d | head -1)
+ELECTRON_DIR=$(find node_modules/.pnpm -maxdepth 2 -name "electron@*" -type d 2>/dev/null | head -1)
 
 if [ -n "$ELECTRON_DIR" ]; then
-    cd "$ELECTRON_DIR/node_modules/electron"
+    ELECTRON_DIR="$ELECTRON_DIR/node_modules/electron"
+elif [ -d node_modules/electron ]; then
+    ELECTRON_DIR="node_modules/electron"
+fi
+
+if [ -n "$ELECTRON_DIR" ]; then
+    cd "$ELECTRON_DIR"
     rm -rf dist path.txt
     npm run postinstall
 
