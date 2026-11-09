@@ -1,7 +1,6 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RightPaneView } from './RightPaneView';
-import { RIGHT_PANE_TAB_SHORTCUT_EVENT } from './rightPaneTabs';
 
 const mocks = vi.hoisted(() => ({
   getAgentCommandForWorktree: vi.fn()
@@ -12,8 +11,21 @@ vi.mock('@/services/worktreeAgentCommands', () => ({
 }));
 
 vi.mock('./TerminalGrid', () => ({
-  TerminalGrid: ({ initialCommand }: { initialCommand?: string }) => (
-    <div data-testid={initialCommand ? 'agent-grid' : 'terminal-grid'}>{initialCommand}</div>
+  TerminalGrid: ({
+    cacheKey,
+    initialCommand,
+    isVisible = true
+  }: {
+    cacheKey?: string;
+    initialCommand?: string;
+    isVisible?: boolean;
+  }) => (
+    <div
+      data-testid={cacheKey?.endsWith(':agent') ? 'agent-grid' : 'terminal-grid'}
+      data-visible={isVisible}
+    >
+      {initialCommand}
+    </div>
   )
 }));
 
@@ -54,7 +66,7 @@ describe('RightPaneView', () => {
     expect(screen.queryByTestId('agent-grid')).not.toBeInTheDocument();
   });
 
-  it('switches tabs from the global right pane shortcut event', async () => {
+  it('switches tabs from the global keyboard shortcut', async () => {
     mocks.getAgentCommandForWorktree.mockResolvedValue(undefined);
 
     render(<RightPaneView worktreePath="/repo/feature" />);
@@ -62,10 +74,28 @@ describe('RightPaneView', () => {
     expect(await screen.findByTestId('terminal-grid')).toBeInTheDocument();
 
     act(() => {
-      window.dispatchEvent(new CustomEvent(RIGHT_PANE_TAB_SHORTCUT_EVENT, { detail: 'git-diff' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', metaKey: true }));
     });
 
     expect(screen.getByRole('tab', { name: /changes/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('git-diff-view')).toBeInTheDocument();
+  });
+
+  it('keeps the Agent terminal mounted after it has been opened', async () => {
+    mocks.getAgentCommandForWorktree.mockResolvedValue(undefined);
+
+    render(<RightPaneView worktreePath="/repo/feature" />);
+
+    await screen.findByTestId('terminal-grid');
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /agent/i }), { button: 0 });
+    const agentGrid = screen.getByTestId('agent-grid');
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /terminal/i }), { button: 0 });
+    expect(screen.getByTestId('agent-grid')).toBe(agentGrid);
+    expect(agentGrid).toHaveAttribute('data-visible', 'false');
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /agent/i }), { button: 0 });
+    expect(screen.getByTestId('agent-grid')).toBe(agentGrid);
+    expect(agentGrid).toHaveAttribute('data-visible', 'true');
   });
 });

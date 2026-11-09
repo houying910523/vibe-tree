@@ -10,6 +10,7 @@ interface TerminalManagerProps {
   theme?: 'light' | 'dark';
   cacheKey?: string;
   initialCommand?: string;
+  isVisible?: boolean;
 }
 
 interface TerminalInstance {
@@ -103,7 +104,8 @@ export function TerminalGrid({
   projectId,
   theme,
   cacheKey = worktreePath,
-  initialCommand
+  initialCommand,
+  isVisible = true
 }: TerminalManagerProps) {
   const [worktreeGrids, setWorktreeGrids] = useState<Map<string, WorktreeGrid>>(worktreeGridCache);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -396,11 +398,13 @@ export function TerminalGrid({
   // Get all terminals from all worktrees for rendering InPortals
   const allTerminals = useMemo(() => {
     const terminals: TerminalInstance[] = [];
-    worktreeGrids.forEach((grid) => {
+    const usesAgentCache = cacheKey !== worktreePath;
+    worktreeGrids.forEach((grid, key) => {
+      if ((key !== grid.worktreePath) !== usesAgentCache) return;
       terminals.push(...collectTerminals(grid.root));
     });
     return terminals;
-  }, [worktreeGrids]);
+  }, [cacheKey, worktreeGrids, worktreePath]);
 
   // Render a grid node recursively
   const renderGridNode = useCallback((node: GridNode): JSX.Element => {
@@ -471,7 +475,7 @@ export function TerminalGrid({
               theme={theme}
               terminalId={terminal.id}
               initialCommand={terminal.initialCommand}
-              isVisible={isCurrentTerminal}
+              isVisible={isVisible && isCurrentTerminal}
               onSplitVertical={() => handleSplit(terminal.id, 'vertical')}
               onSplitHorizontal={() => handleSplit(terminal.id, 'horizontal')}
               onClose={() => handleClose(terminal.id)}

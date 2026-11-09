@@ -49,12 +49,15 @@ export function RightPaneView({
         '3': 'git-diff'
       }
       if (indexTabMapping[event.key]) {
+        if (indexTabMapping[event.key] === 'agent') {
+          agentTabOpenedForWorktree.current = worktreePath;
+        }
         setActiveTab(indexTabMapping[event.key])
         event.preventDefault()
       }
     }
     return onEvent('keydown', onKeyDown)
-  }, []);
+  }, [worktreePath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +96,10 @@ export function RightPaneView({
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
-          if (isRightPaneTab(value)) setActiveTab(value);
+          if (isRightPaneTab(value)) {
+            if (value === 'agent') agentTabOpenedForWorktree.current = worktreePath;
+            setActiveTab(value);
+          }
         }}
         className="flex-1 flex flex-col min-h-0"
       >
@@ -129,14 +135,22 @@ export function RightPaneView({
           )}
         </TabsContent>
 
-        <TabsContent value="agent" className="flex-1 m-0 h-full min-h-0">
-          {agentCommandLoaded && (agentCommand || activeTab === 'agent') && (
+        <TabsContent
+          value="agent"
+          forceMount
+          className="flex-1 m-0 h-full min-h-0 data-[state=inactive]:hidden"
+        >
+          {agentCommandLoaded &&
+            (agentCommand ||
+              activeTab === 'agent' ||
+              agentTabOpenedForWorktree.current === worktreePath) && (
             <TerminalGrid
               worktreePath={worktreePath}
               projectId={projectId}
               theme={theme}
               cacheKey={`${worktreePath}:agent`}
               initialCommand={agentCommand}
+              isVisible={activeTab === 'agent'}
             />
           )}
         </TabsContent>
