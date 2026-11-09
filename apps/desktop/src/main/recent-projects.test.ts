@@ -5,9 +5,7 @@ import path from 'path';
 // Mock electron
 vi.mock('electron', () => ({
   app: {
-    getPath: vi.fn((name: string) =>
-      name === 'home' ? '/tmp/vibetree-home' : '/tmp/vibetree-user-data'
-    )
+    getPath: vi.fn(() => '/tmp/vibetree-home')
   }
 }));
 
@@ -216,21 +214,14 @@ describe('RecentProjectsManager', () => {
     expect(mockFs.writeFileSync).toHaveBeenCalled();
   });
 
-  it('should migrate recent projects from the legacy user data file', async () => {
+  it('should ignore recent projects in the legacy user data file', async () => {
     const legacyFile = path.join('/tmp/vibetree-user-data', 'recent-projects.json');
-    const newFile = path.join('/tmp/vibetree-home', '.vibetree', 'recent-projects.json');
-    const testProjects = [{ path: '/path/to/project', name: 'project', lastOpened: 1000 }];
 
     mockFs.existsSync.mockImplementation((file) => file === legacyFile);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify(testProjects));
 
     const { recentProjectsManager } = await import('./recent-projects');
 
-    expect(recentProjectsManager.getRecentProjects()).toEqual(testProjects);
-    expect(mockFs.readFileSync).toHaveBeenCalledWith(legacyFile, 'utf8');
-    expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-      newFile,
-      JSON.stringify(testProjects, null, 2)
-    );
+    expect(recentProjectsManager.getRecentProjects()).toEqual([]);
+    expect(mockFs.readFileSync).not.toHaveBeenCalled();
   });
 });
