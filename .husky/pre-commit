@@ -21,3 +21,10 @@ if [ -n "$staged_files" ]; then
     exit 1
   fi
 fi
+
+frontend_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^apps/desktop/src/renderer/.*\.(ts|tsx)$' || true)
+
+if [ -n "$frontend_files" ]; then
+  # shortcut: lint the whole renderer, pass staged paths if this becomes slow.
+  pnpm --filter @vibetree/desktop lint:renderer
+fi

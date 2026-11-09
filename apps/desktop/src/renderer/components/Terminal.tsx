@@ -36,6 +36,7 @@ const TERMINAL_APPLICATION_MODES = new Set([
   '1048',
   '1049'
 ]);
+// eslint-disable-next-line no-control-regex -- ANSI escape sequences contain a control character.
 const DEC_PRIVATE_MODE_SEQUENCE = /\u001b\[\?([0-9;]*)([hl])/g;
 
 const DEFAULT_TERMINAL_FONT_FAMILY =
