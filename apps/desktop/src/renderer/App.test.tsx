@@ -29,8 +29,17 @@ vi.mock('./contexts/ProjectContext', () => ({
 }));
 
 vi.mock('./components/ProjectSelector', () => ({
-  ProjectSelector: ({ onSelectProject }: { onSelectProject: (path: string) => void }) => (
-    <button onClick={() => onSelectProject('/projects/recent')}>Recent Project</button>
+  ProjectSelector: ({
+    onSelectProject,
+    canRemoveRecentProjects
+  }: {
+    onSelectProject: (path: string) => void;
+    canRemoveRecentProjects?: boolean;
+  }) => (
+    <>
+      <button onClick={() => onSelectProject('/projects/recent')}>Recent Project</button>
+      {canRemoveRecentProjects && <button>Remove Recent Project</button>}
+    </>
   )
 }));
 
@@ -63,6 +72,7 @@ describe('App Component - Plus Button Behavior', () => {
     fireEvent.click(screen.getByTitle('Open project'));
 
     expect(await screen.findByRole('dialog', { name: 'Open a project' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Recent Project' })).toBeInTheDocument();
     expect(mockAddProject).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Recent Project' }));

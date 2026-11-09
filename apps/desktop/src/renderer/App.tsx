@@ -235,7 +235,7 @@ function AppContent() {
           <DialogDescription className="sr-only">
             Choose a recent project or select a project folder.
           </DialogDescription>
-          <ProjectSelector onSelectProject={handleSelectProject} />
+          <ProjectSelector onSelectProject={handleSelectProject} canRemoveRecentProjects />
         </DialogContent>
       </Dialog>
 
