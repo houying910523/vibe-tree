@@ -31,6 +31,26 @@ Object.defineProperty(window, 'electronAPI', {
     window: {
       toggleMaximized: vi.fn(() => Promise.resolve())
     },
+    theme: {
+      get: vi.fn(() => Promise.resolve('light')),
+      onChange: vi.fn(() => () => {})
+    },
+    dialog: {
+      selectDirectory: vi.fn(() => Promise.resolve(undefined)),
+      showError: vi.fn(() => Promise.resolve())
+    },
+    appSettings: {
+      get: vi.fn(() => Promise.resolve({ hasSeenOnboarding: true })),
+      update: vi.fn((updates) => Promise.resolve({ hasSeenOnboarding: true, ...updates }))
+    },
+    menu: {
+      onOpenTerminalSettings: vi.fn(() => () => {}),
+      onOpenSettings: vi.fn(() => () => {}),
+      onNewWorktree: vi.fn(() => () => {}),
+      onToggleView: vi.fn(() => () => {}),
+      onSelectWorktreeDelta: vi.fn(() => () => {}),
+      onToggleSidebar: vi.fn(() => () => {})
+    },
     notification: {
       getSettings: vi.fn(() => Promise.resolve({ enabled: true })),
       updateSettings: vi.fn(() => Promise.resolve()),

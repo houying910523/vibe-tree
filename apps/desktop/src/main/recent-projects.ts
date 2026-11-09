@@ -12,16 +12,24 @@ class RecentProjectsManager {
   private recentProjects: RecentProject[] = [];
   private readonly maxRecentProjects = 10;
   private readonly storageFile: string;
+  private readonly legacyStorageFile: string;
 
   constructor() {
-    this.storageFile = path.join(app.getPath('userData'), 'recent-projects.json');
+    this.storageFile = path.join(app.getPath('home'), '.vibetree', 'recent-projects.json');
+    this.legacyStorageFile = path.join(app.getPath('userData'), 'recent-projects.json');
     this.loadRecentProjects();
   }
 
   private loadRecentProjects() {
     try {
-      if (fs.existsSync(this.storageFile)) {
-        const data = fs.readFileSync(this.storageFile, 'utf8');
+      const sourceFile = fs.existsSync(this.storageFile)
+        ? this.storageFile
+        : fs.existsSync(this.legacyStorageFile)
+          ? this.legacyStorageFile
+          : undefined;
+
+      if (sourceFile) {
+        const data = fs.readFileSync(sourceFile, 'utf8');
         this.recentProjects = JSON.parse(data);
         // Validate and clean up invalid entries
         this.recentProjects = this.recentProjects.filter(
@@ -36,6 +44,10 @@ class RecentProjectsManager {
           this.recentProjects = this.recentProjects
             .sort((a, b) => b.lastOpened - a.lastOpened)
             .slice(0, this.maxRecentProjects);
+        }
+
+        if (sourceFile === this.legacyStorageFile) {
+          this.saveRecentProjects();
         }
       }
     } catch (error) {

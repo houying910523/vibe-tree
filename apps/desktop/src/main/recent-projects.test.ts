@@ -5,7 +5,9 @@ import path from 'path';
 // Mock electron
 vi.mock('electron', () => ({
   app: {
-    getPath: vi.fn(() => '/tmp/vibetree-test')
+    getPath: vi.fn((name: string) =>
+      name === 'home' ? '/tmp/vibetree-home' : '/tmp/vibetree-user-data'
+    )
   }
 }));
 
@@ -72,7 +74,7 @@ describe('RecentProjectsManager', () => {
 
     // Verify save was called
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-      path.join('/tmp/vibetree-test', 'recent-projects.json'),
+      path.join('/tmp/vibetree-home', '.vibetree', 'recent-projects.json'),
       expect.any(String)
     );
   });
@@ -137,7 +139,7 @@ describe('RecentProjectsManager', () => {
     expect(recentProjects[0].path).toBe('/path/to/project2');
 
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-      path.join('/tmp/vibetree-test', 'recent-projects.json'),
+      path.join('/tmp/vibetree-home', '.vibetree', 'recent-projects.json'),
       expect.any(String)
     );
   });
@@ -159,7 +161,7 @@ describe('RecentProjectsManager', () => {
     expect(recentProjects).toHaveLength(0);
 
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-      path.join('/tmp/vibetree-test', 'recent-projects.json'),
+      path.join('/tmp/vibetree-home', '.vibetree', 'recent-projects.json'),
       '[]'
     );
   });
@@ -208,7 +210,27 @@ describe('RecentProjectsManager', () => {
 
     recentProjectsManager.addRecentProject('/path/to/project');
 
-    expect(mockFs.mkdirSync).toHaveBeenCalledWith('/tmp/vibetree-test', { recursive: true });
+    expect(mockFs.mkdirSync).toHaveBeenCalledWith('/tmp/vibetree-home/.vibetree', {
+      recursive: true
+    });
     expect(mockFs.writeFileSync).toHaveBeenCalled();
+  });
+
+  it('should migrate recent projects from the legacy user data file', async () => {
+    const legacyFile = path.join('/tmp/vibetree-user-data', 'recent-projects.json');
+    const newFile = path.join('/tmp/vibetree-home', '.vibetree', 'recent-projects.json');
+    const testProjects = [{ path: '/path/to/project', name: 'project', lastOpened: 1000 }];
+
+    mockFs.existsSync.mockImplementation((file) => file === legacyFile);
+    mockFs.readFileSync.mockReturnValue(JSON.stringify(testProjects));
+
+    const { recentProjectsManager } = await import('./recent-projects');
+
+    expect(recentProjectsManager.getRecentProjects()).toEqual(testProjects);
+    expect(mockFs.readFileSync).toHaveBeenCalledWith(legacyFile, 'utf8');
+    expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+      newFile,
+      JSON.stringify(testProjects, null, 2)
+    );
   });
 });

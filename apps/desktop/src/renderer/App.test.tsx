@@ -1,107 +1,76 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import App from './App';
 
-// Mock the electron API
-const mockSelectDirectory = vi.fn();
-const mockAddProject = vi.fn();
-const mockRemoveProject = vi.fn();
+const { mockAddProject, mockRemoveProject } = vi.hoisted(() => ({
+  mockAddProject: vi.fn(),
+  mockRemoveProject: vi.fn()
+}));
+
+vi.mock('./contexts/ProjectContext', () => ({
+  ProjectProvider: ({ children }: { children: ReactNode }) => children,
+  useProjects: () => ({
+    projects: [
+      {
+        id: 'project-1',
+        name: 'Current Project',
+        path: '/projects/current',
+        worktrees: [],
+        selectedWorktree: null
+      }
+    ],
+    activeProjectId: 'project-1',
+    addProject: mockAddProject,
+    removeProject: mockRemoveProject,
+    setActiveProject: vi.fn(),
+    setSelectedWorktree: vi.fn()
+  })
+}));
+
+vi.mock('./components/ProjectSelector', () => ({
+  ProjectSelector: ({ onSelectProject }: { onSelectProject: (path: string) => void }) => (
+    <button onClick={() => onSelectProject('/projects/recent')}>Recent Project</button>
+  )
+}));
+
+vi.mock('./components/TitleBar', () => ({
+  TitleBar: ({ children }: { children?: ReactNode }) => <div>{children}</div>
+}));
+vi.mock('./components/ProjectWorkspace', () => ({ ProjectWorkspace: () => null }));
+vi.mock('./components/GlobalTerminalSettings', () => ({ GlobalTerminalSettings: () => null }));
+vi.mock('./components/GlobalSettings', () => ({ GlobalSettings: () => null }));
+vi.mock('./components/OnboardingDialog', () => ({ OnboardingDialog: () => null }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockSelectDirectory.mockReset();
+  vi.stubGlobal('localStorage', {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    key: vi.fn(() => null),
+    length: 0
+  });
   mockAddProject.mockReset();
   mockRemoveProject.mockReset();
 });
 
 describe('App Component - Plus Button Behavior', () => {
-  it('should call dialog.selectDirectory when handleOpenProjectDialog is invoked', async () => {
-    // Simulate the handleOpenProjectDialog function from App.tsx
-    const handleOpenProjectDialog = async () => {
-      const path = await mockSelectDirectory();
-      if (path) {
-        mockAddProject(path);
-      }
-    };
+  it('opens the project selector and waits for a recent project selection', async () => {
+    render(<App />);
 
-    // Test when a path is selected
-    const testPath = '/test/project/path';
-    mockSelectDirectory.mockResolvedValue(testPath);
+    fireEvent.click(screen.getByTitle('Open project'));
 
-    await handleOpenProjectDialog();
-
-    expect(mockSelectDirectory).toHaveBeenCalledTimes(1);
-    expect(mockAddProject).toHaveBeenCalledWith(testPath);
-  });
-
-  it('should not add project when dialog is cancelled', async () => {
-    // Simulate the handleOpenProjectDialog function from App.tsx
-    const handleOpenProjectDialog = async () => {
-      const path = await mockSelectDirectory();
-      if (path) {
-        mockAddProject(path);
-      }
-    };
-
-    // Test when dialog is cancelled (returns null)
-    mockSelectDirectory.mockResolvedValue(null);
-
-    await handleOpenProjectDialog();
-
-    expect(mockSelectDirectory).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('dialog', { name: 'Open a project' })).toBeInTheDocument();
     expect(mockAddProject).not.toHaveBeenCalled();
-  });
 
-  it('should not show intermediate ProjectSelector when plus button is clicked', () => {
-    // This test verifies the logic change
-    // The old behavior would set showProjectSelector to true
-    // The new behavior directly calls the dialog
+    fireEvent.click(screen.getByRole('button', { name: 'Recent Project' }));
 
-    // Old behavior (removed):
-    // const [showProjectSelector, setShowProjectSelector] = useState(false);
-    // onClick={() => setShowProjectSelector(true)}
-
-    // New behavior (current):
-    // onClick={handleOpenProjectDialog}
-    // where handleOpenProjectDialog directly calls window.electronAPI.dialog.selectDirectory()
-
-    // This is validated by the fact that handleOpenProjectDialog
-    // doesn't involve any state changes for showing a selector
-    const handleOpenProjectDialog = async () => {
-      const path = await mockSelectDirectory();
-      if (path) {
-        mockAddProject(path);
-      }
-    };
-
-    // The function should not have any reference to showProjectSelector
-    const functionString = handleOpenProjectDialog.toString();
-    expect(functionString).not.toContain('showProjectSelector');
-    expect(functionString).toContain('mockSelectDirectory');
-  });
-
-  it('should handle multiple projects being added sequentially', async () => {
-    const handleOpenProjectDialog = async () => {
-      const path = await mockSelectDirectory();
-      if (path) {
-        mockAddProject(path);
-      }
-    };
-
-    // First project
-    mockSelectDirectory.mockResolvedValueOnce('/project1');
-    await handleOpenProjectDialog();
-
-    // Second project
-    mockSelectDirectory.mockResolvedValueOnce('/project2');
-    await handleOpenProjectDialog();
-
-    // Third project (cancelled)
-    mockSelectDirectory.mockResolvedValueOnce(null);
-    await handleOpenProjectDialog();
-
-    expect(mockSelectDirectory).toHaveBeenCalledTimes(3);
-    expect(mockAddProject).toHaveBeenCalledTimes(2);
-    expect(mockAddProject).toHaveBeenNthCalledWith(1, '/project1');
-    expect(mockAddProject).toHaveBeenNthCalledWith(2, '/project2');
+    expect(mockAddProject).toHaveBeenCalledWith('/projects/recent');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Open a project' })).not.toBeInTheDocument();
+    });
   });
 });
 

@@ -24,6 +24,7 @@ function AppContent() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [projectToClose, setProjectToClose] = useState<{ id: string; name: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
     projects,
@@ -120,10 +121,11 @@ function AppContent() {
   }, [theme]);
 
   const handleSelectProject = (path: string) => {
+    setShowProjectSelector(false);
     addProject(path);
   };
 
-  const handleOpenProjectDialog = async () => {
+  const handleSelectFolder = async () => {
     const path = await window.electronAPI.dialog.selectDirectory();
     if (path) {
       addProject(path);
@@ -160,7 +162,7 @@ function AppContent() {
       {projects.length === 0 ? (
         <>
           <TitleBar theme={theme} onThemeToggle={toggleTheme} />
-          <ProjectSelector onSelectProject={handleSelectProject} />
+          <ProjectSelector onSelectProject={handleSelectProject} canRemoveRecentProjects />
         </>
       ) : (
         <Tabs
@@ -193,7 +195,8 @@ function AppContent() {
             <Button
               size="icon"
               variant="ghost"
-              onClick={handleOpenProjectDialog}
+              onClick={() => setShowProjectSelector(true)}
+              title="Open project"
               className="h-6 w-6 text-muted-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -223,8 +226,18 @@ function AppContent() {
       <OnboardingDialog
         open={showOnboarding}
         onComplete={completeOnboarding}
-        onOpenProject={handleOpenProjectDialog}
+        onOpenProject={handleSelectFolder}
       />
+
+      <Dialog open={showProjectSelector} onOpenChange={setShowProjectSelector}>
+        <DialogContent>
+          <DialogTitle className="sr-only">Open a project</DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a recent project or select a project folder.
+          </DialogDescription>
+          <ProjectSelector onSelectProject={handleSelectProject} />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={projectToClose !== null} onOpenChange={(open) => !open && cancelCloseProject()}>
         <DialogContent>

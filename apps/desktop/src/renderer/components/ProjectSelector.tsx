@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
-import { FolderOpen, Clock } from 'lucide-react';
+import { FolderOpen, Clock, Trash2 } from 'lucide-react';
 
 interface ProjectSelectorProps {
   onSelectProject: (path: string) => void;
+  canRemoveRecentProjects?: boolean;
 }
 
 interface RecentProject {
@@ -12,7 +13,10 @@ interface RecentProject {
   lastOpened: number;
 }
 
-export function ProjectSelector({ onSelectProject }: ProjectSelectorProps) {
+export function ProjectSelector({
+  onSelectProject,
+  canRemoveRecentProjects = false
+}: ProjectSelectorProps) {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
 
   useEffect(() => {
@@ -27,6 +31,11 @@ export function ProjectSelector({ onSelectProject }: ProjectSelectorProps) {
     if (path) {
       onSelectProject(path);
     }
+  };
+
+  const handleRemoveRecentProject = async (projectPath: string) => {
+    await window.electronAPI.recentProjects.remove(projectPath);
+    setRecentProjects((projects) => projects.filter((project) => project.path !== projectPath));
   };
 
   return (
@@ -51,19 +60,31 @@ export function ProjectSelector({ onSelectProject }: ProjectSelectorProps) {
             </p>
             <div className="space-y-1">
               {recentProjects.slice(0, 5).map((project) => (
-                <button
-                  key={project.path}
-                  onClick={() => onSelectProject(project.path)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-accent transition-colors text-left"
-                >
-                  <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium truncate">{project.name}</span>
-                    <span className="block text-xs text-muted-foreground truncate">
-                      {project.path}
+                <div key={project.path} className="flex rounded-md border hover:bg-accent">
+                  <button
+                    onClick={() => onSelectProject(project.path)}
+                    className="min-w-0 flex-1 flex items-center gap-2 px-3 py-2 transition-colors text-left"
+                  >
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium truncate">{project.name}</span>
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {project.path}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  {canRemoveRecentProjects && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveRecentProject(project.path)}
+                      aria-label={`Remove ${project.name} from recent projects`}
+                      className="m-1 h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
