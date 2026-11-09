@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
-import { FolderOpen, Clock, Trash2 } from 'lucide-react';
+import { FolderOpen, Clock, X as RemoveIcon } from 'lucide-react';
 
 interface ProjectSelectorProps {
   onSelectProject: (path: string) => void;
@@ -81,7 +81,7 @@ export function ProjectSelector({
                       aria-label={`Remove ${project.name} from recent projects`}
                       className="m-1 h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <RemoveIcon className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
