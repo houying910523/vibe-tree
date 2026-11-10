@@ -15,9 +15,8 @@
     "dev:electron": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron .",
     "dev:electron:debug": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron . --remote-debugging-port=9222",
     "prebuild": "pnpm --filter @vibetree/core build && pnpm --filter @vibetree/server-core build",
-    "build": "pnpm build:main && pnpm build:preload && pnpm build:renderer && pnpm build:copy-assets",
-    "build:main": "tsc -p tsconfig.main.json",
-    "build:preload": "tsc -p tsconfig.preload.json",
+    "build": "node scripts/build.mjs",
+    "build:electron": "node scripts/build-electron.mjs",
     "build:copy-assets": "cp src/main/stats-dialog.html dist/main/",
     "build:renderer": "vite build",
     "start": "electron .",
@@ -29,7 +28,8 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:e2e": "pnpm build && playwright test",
-    "test:e2e:ui": "pnpm build && playwright test --ui"
+    "test:e2e:ui": "pnpm build && playwright test --ui",
+    "clean": "rm -rf dist"
   },
   "keywords": [
     "electron",
@@ -61,6 +61,7 @@
     "concurrently": "^8.2.2",
     "electron": "38.0.0",
     "electron-builder": "^24.9.1",
+    "esbuild": "^0.25.9",
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",

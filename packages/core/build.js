@@ -1,13 +1,19 @@
 import { build } from 'esbuild';
 import { execSync } from 'child_process';
 
-// First, run TypeScript to generate type definitions
-console.log('Generating TypeScript definitions...');
-execSync('tsc --emitDeclarationOnly', { stdio: 'inherit' });
+// Type declarations and the three bundles are independent, so run them
+// concurrently instead of serially.
+const generateTypes = new Promise((resolve, reject) => {
+  console.log('Generating TypeScript definitions...');
+  try {
+    execSync('tsc --emitDeclarationOnly', { stdio: 'inherit' });
+    resolve();
+  } catch (err) {
+    reject(err);
+  }
+});
 
-// Build Browser ESM version (no Node.js deps)
-console.log('Building Browser ESM version...');
-await build({
+const browserBundle = build({
   entryPoints: ['src/browser.ts'],
   bundle: true,
   outfile: 'dist/browser.mjs',
@@ -17,9 +23,7 @@ await build({
   sourcemap: true
 });
 
-// Build Node ESM version (with Node.js deps)
-console.log('Building Node ESM version...');
-await build({
+const nodeEsmBundle = build({
   entryPoints: ['src/index.ts'],
   bundle: true,
   outfile: 'dist/index.mjs',
@@ -30,9 +34,7 @@ await build({
   sourcemap: true
 });
 
-// Build Node CJS version
-console.log('Building Node CommonJS version...');
-await build({
+const nodeCjsBundle = build({
   entryPoints: ['src/index.ts'],
   bundle: true,
   outfile: 'dist/index.cjs',
@@ -42,5 +44,7 @@ await build({
   external: ['child_process', 'path', 'crypto'],
   sourcemap: true
 });
+
+await Promise.all([generateTypes, browserBundle, nodeEsmBundle, nodeCjsBundle]);
 
 console.log('Build complete!');

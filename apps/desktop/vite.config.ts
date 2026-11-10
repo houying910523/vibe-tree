@@ -36,7 +36,9 @@ export default defineConfig({
   base: './',
   build: {
     outDir: '../../dist/renderer',
-    emptyOutDir: true
+    emptyOutDir: true,
+    reportCompressedSize: false,
+    target: 'es2022'
   },
   resolve: {
     alias: {

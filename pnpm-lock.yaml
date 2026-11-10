@@ -162,6 +162,9 @@ importers:
       electron-builder:
         specifier: ^24.9.1
         version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
+      esbuild:
+        specifier: ^0.25.9
+        version: 0.25.9
       eslint:
         specifier: ^8.56.0
         version: 8.57.1
@@ -214,6 +217,9 @@ importers:
       '@types/ws':
         specifier: ^8.5.10
         version: 8.18.1
+      esbuild:
+        specifier: ^0.25.9
+        version: 0.25.9
       typescript:
         specifier: ^5.3.3
         version: 5.9.2
@@ -2588,7 +2594,7 @@ packages:
       sirv: 3.0.2
       tinyglobby: 0.2.14
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@20.19.11)(@vitest/ui@3.2.4)(yaml@2.9.1)
+      vitest: 3.2.4(@types/node@20.19.11)(@vitest/ui@3.2.4)(happy-dom@18.0.1)(jsdom@27.0.0)
     dev: true
 
   /@vitest/utils@3.2.4:
